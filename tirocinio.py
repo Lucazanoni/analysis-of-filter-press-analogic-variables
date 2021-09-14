@@ -10,23 +10,26 @@ import pandas as pd
 import pylab as plt
 import datetime
 #%%
+path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
+#%%
 #read Bson file
-with open("MindsphereFleetManager/AQS_cycle0.bson", "rb") as rf:
+with open(path+"/AQS_cycle0.bson", "rb") as rf:
     data = bson.decode(rf.read())
     
-#se il file è phase aìha variabili normali e phase, cioè due etichette nel dict, altrimenti solo 1    
+#se il file è phase ha variabili normali e phase, cioè due etichette nel dict, altrimenti solo 1    
 datafr1=pd.DataFrame(data[list(data)[0]])
 if len(list(data))==2:
     datafr_phase=pd.DataFrame(data[list(data)[1]])
 #%%
 #read excel file
-datafr=pd.read_excel("MindsphereFleetManager/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogFast.xlsx")
+datafr=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogFast.xlsx")
 
 #%%
 # read all the bson filename in the path
 #funziona
 import glob, os
-os.chdir("D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager")
+
+os.chdir(path)
 for file in glob.glob("*.bson"):
     print(file)
     
