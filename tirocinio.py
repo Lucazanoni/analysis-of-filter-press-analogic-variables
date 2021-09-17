@@ -56,6 +56,8 @@ def time_to_num(t):
 #%%
 def numbers_from_time(df,timename='_time'):
     timenum=[]
+    if not(timename in df.columns):
+        raise TypeError(timename+' do not exist in the dataframe')
     #time0=df[timename][:1]
     
     #t0=time_to_num(timefromiso(time0.iloc[time0['Index']==0]))
@@ -103,6 +105,8 @@ def mapping_var_big_than(df,namevar,namevar2,limit=None,timename='_time',title='
 #%%
 #add to df a column of time in second
 def add_time_as_number(df,timename='_time'):
+    if not(timename in df.columns):
+        raise TypeError(timename+' do not exist in the dataframe')
     timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
     return(pd.concat([df,timenumberdf],axis=1))
 #%%
@@ -124,21 +128,31 @@ def selecting_cycle(arr, limit, n_point_under,n_point_over):
     #n_point_under=number of point under which no start cycle index is taken
     #n_point_over=number of point under which no end cycle index is taken
     #return=starting and ending cycle indices 
+        if(n_point_under<1):
+            raise TypeError("n_point_under should be at least 1")
+        if(n_point_over<1):
+            raise TypeError("n_point_over should be at least 1")
+        if(n_point_under<len(arr)):
+            raise TypeError("n_point_under could not be more than the length of arr")
+        if(n_point_over<len(arr)):
+            raise TypeError("n_point_over could not be more than the length of arr")
+        if len(arr)<1:
+            raise TypeError("arr is empty")
         indices=[]
         index_start=0
         index_end=0
         
-#        h=False
+        #        h=False
         k=False
         count1=0 #count1 count the numbers over limit
         count2=0
         for i in range(0,len(arr)):
             if arr[i]>limit:
-#                h=True
+        #                h=True
                 count1=count1+1
                 count2=0
             else:
-#                h=False
+        #                h=False
                 count1=0
                 count2=count2+1
             if (count1==n_point_under  and not(k)):
