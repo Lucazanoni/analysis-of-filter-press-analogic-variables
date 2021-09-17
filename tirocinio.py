@@ -132,9 +132,9 @@ def selecting_cycle(arr, limit, n_point_under,n_point_over):
             raise TypeError("n_point_under should be at least 1")
         if(n_point_over<1):
             raise TypeError("n_point_over should be at least 1")
-        if(n_point_under<len(arr)):
+        if(n_point_under>len(arr)):
             raise TypeError("n_point_under could not be more than the length of arr")
-        if(n_point_over<len(arr)):
+        if(n_point_over>len(arr)):
             raise TypeError("n_point_over could not be more than the length of arr")
         if len(arr)<1:
             raise TypeError("arr is empty")
@@ -165,8 +165,34 @@ def selecting_cycle(arr, limit, n_point_under,n_point_over):
                 index_end=0
                 k=False
         return indices
-    #da correggere
 
+"""con  n_point_under=3, e  n_point_over=5 funziona abbastanza bene"""
+
+
+#%%
+"""scattr plot of all division of the df"""
+def scatter_plot_cycles(df,indices,y_var,x_var='Time number'):
+    for index in indices:
+        plt.figure()
+        plt.scatter(df[x_var][index[0]:index[1]],df[y_var][index[0]:index[1]],marker='.')
+        
+        
+#%%
+"""analisi densità-volume"""
+def density_volume(density,flows,time1,time2):
+    index_flow=selecting_cycle(flows,1.,3,5) #divide the points of flow in cycles in which flow is not null avoiding fluctuations
+    density_interp=np.interp(time1,time2,density) #linear interpolation of density (less sample) with the time of flow (more sample)
+    volumes=[]
+    densities=[]
+    for index in index_flow:
+        volume=volume_from_flow(flows[index[0]:index[1]],time1[index[0]:index[1]]) #calulate volumes as integral of flow in time
+        volumes.append(volume)
+        densities.append(density_interp[index[0]:index[1]])
+        plt.figure()
+        plt.scatter(density_interp[index[0]:index[1]], volume, marker='.')
+    return(densities, volumes)
+    
+    
 #%%
 """linear interpolation"""
 """np.interp(time1,time2, density)"""
