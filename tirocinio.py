@@ -10,9 +10,11 @@ import json
 import pandas as pd
 import pylab as plt
 import datetime
+import warnings
 import scipy as sp
-
-
+import statistics as st
+from statsmodels.tsa.stattools import acf
+from statsmodels.graphics.tsaplots import plot_acf
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
 #%%
 #read Bson file
@@ -51,7 +53,7 @@ def timefromiso(dataiso):
 
 #trasforma orario formato hh,mm,ss,micros in secondi 
 def time_to_num(t):
-    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24)
+    return(t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24)
 
 #%%
 def numbers_from_time(df,timename='_time'):
@@ -189,56 +191,74 @@ def density_volume(density,flows,time1,time2):
         volumes.append(volume)
         densities.append(density_interp[index[0]:index[1]])
         plt.figure()
-        plt.scatter(density_interp[index[0]:index[1]], volume, marker='.')
+        plt.scatter(volume,density_interp[index[0]:index[1]] , marker='.')
+#        plt.figure()
+#        plt.scatter(time1[index[0]:index[1]],volume, marker='.')
     return(densities, volumes)
     
     
 #%%
-"""linear interpolation"""
-"""np.interp(time1,time2, density)"""
+"""divide in cycle using total feeding time=analog 21"""
+#
+def select_cycle2_time(df,var,timename='Time number'):
+    j=0
+    start_i=[]
+    end_i=[]
+    times_start=[]
+    times_end=[]
+    for i in range(0,len(df[var])):
+        if (df[var][i]!=0 and j==0):
+            start_i.append(i)
+            j=1
+        if (df[var][i]==0 and j==1):
+            end_i.append(i)
+            j=0
+    for i in range (0,len(end_i)):
+        times_start.append(df[timename][start_i[i]])
+        times_end.append(df[timename][end_i[i]])
+    return (times_start,times_end)
+
+
+
+#if we have time start and time end, this takes the indices of start and end of the cycle
+
+def select_cycles_indices_by_time(df, times_start,times_end, timename='Time number'):
+    indices=[]
+    for i in range(0,len(times_start)):
+        df1=df.loc[df[timename]<=times_end[i]]
+        df1=df1.loc[df1[timename]>=times_start[i]]
+        indices.append([df1.index[0]+1,df1.index[len(df1)-1]+1])
+    return indices
+
+
+
+
 #%%
-#pairing slow and fast variable adding missing points in slow variables
-#slow variables have a minor sampling rate, so we need to interpolate the missing points
-#how? or linear interpolation or finding some low of the points and generating missing points from those curves
-"""def linear_interpolation(x1,y1,x2,y2,xp):
-    return ((xp-x2)/(x1-x2)*y1-(xp-x1)/(x1-x2)*y2)
+
+"""we want to compare some measure of different cycle
+this function, giving the array of values, theindices of the cycles and the measure we want, give a statistic about the cycles
+"""
+
+def cycle_stat_measure(arr, indices,statistic,statistic_libr):
+    """indices should be a matrix Nx2 or a array of array 2x1"""
+    vals=[]
+    module = __import__(statistic_libr)
+    method_to_call = getattr(module, statistic)
+    for index in indices:
+        vals.append(method_to_call(arr[index[0]:index[1]]))
+    return vals
+
+def boxplot(arr, indices):
+    plt.figure()
+    data=[]
+    for index in indices:
+        data.append(arr[index[0]:index[1]])
+    plt.boxplot(data)
 
 
-def linear_variables_interpolation(var_array1,time1,var_array2,time2):#var_array1=more dense, var_array2= less dense
-    var2_interpolated=np.zeros(len(time1))
-    arr_same_values=np.in1d(time1,time2)#boolean array with True if the element of time1 is in time2
-    for i in range(0,len(time1)):
-        if arr_same_values[i]:
-            var2_interpolated[i]=var_array2[i] #filled var2_interpolated with the values of time1 that are present in time2
-#            
-#    index_prev_true=0
-#    index_next_true=0
-#    #find the previous and next values in common between time 1 and 2 end interpolate points between the two
-#    for i in range(1,len(time1)):
-#        if arr_same_values[i]: 
-#            index_prev_true=i
-#        j=0
-#        if (arr_same_values[i]):
-#            j=i
-#            while (not(arr_same_values[j])and (j<len(time1))):
-#                j=j+1
-#            if(j<len(time1)):
-#                index_next_true=j
-#                #here i will use also all the other interpolation curve
-#                x1=time1[index_prev_true]
-#                y1=var_array1[index_prev_true]
-#                x2=time1[index_next_true]
-#                y2=var_array1[index_next_true]
-#                var2_interpolated[i]=linear_interpolation(x1,y1,x2,y2,time2[i])
-#            else:
-#                var2_interpolated[i]=0
-    return var2_interpolated
-        """
-        
-"""BASTAVA UNA FUNZIONE DI NUMPY"""
-"""np.interp(time1,time2, density)"""
-            
-            
+#%%
+    
+"""time series analysis"""
 
 
 
@@ -250,26 +270,21 @@ def linear_variables_interpolation(var_array1,time1,var_array2,time2):#var_array
 
 
 
+    
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#%%
+"""polynomial fitting"""
+def poly_fit(x,y,deg=10):
+    
+    
+    z=np.polyfit(x, y,deg)
+    p=np.poly1d(z)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', np.RankWarning)
+        p30 = np.poly1d(np.polyfit(x, y, 30))
+    xp = np.linspace(0,x[len(x)] , len(y))
+    _ = plt.plot(x, y, '.', xp, p(xp), '-', xp, p30(xp), '--')
 
 
 
