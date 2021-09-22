@@ -10,50 +10,45 @@ import json
 import pandas as pd
 import pylab as plt
 import datetime
+import dateutil.parser
 import warnings
 import scipy as sp
 import statistics as st
+import statsmodels
 from statsmodels.tsa.stattools import acf
 from statsmodels.graphics.tsaplots import plot_acf
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
-#%%
-#read Bson file
-with open(path+"/AQS_cycle10002_phase1.bson", "rb") as rf:
-    data = bson.decode(rf.read())
-    
-#se il file è phase ha variabili normali e phase, cioè due etichette nel dict, altrimenti solo 1    
-datafr1=pd.DataFrame(data[list(data)[0]])
-if len(list(data))==2:
-    datafr_phase=pd.DataFrame(data[list(data)[1]])
-    
-    #%%
-with open('mapping_phasevariables.json') as json_file:
-    data_phase=json.load(json_file)
-phasevars=pd.DataFrame(data_phase['phaseIdVars'])
 
-#%%
-# read all the bson filename in the path
-#funziona
-import glob, os
-files=[]
-os.chdir(path)
-for file in glob.glob("*.bson"):
-    files.append(file)
-    
 #%%
 #read excel file
 df_fast=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogFast.xlsx")
 df_slow=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogSlow.xlsx")
-
+df_power=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power.xlsx")
+df_power1=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power (1).xlsx")
+#%%
+#take data from iso data
+def take_datetime(df,timename='_time'):
+    dates=[]
+    for date in df[timename]:
+        date=dateutil.parser.isoparse(date[:-1])
+        dates.append(date)
+    date=pd.DataFrame({'time':dates})
+    return date
 #%%
 #take time from iso 8601 data
-
 def timefromiso(dataiso):
     return datetime.datetime.fromisoformat(dataiso[:-1])
 
 #trasforma orario formato hh,mm,ss,micros in secondi 
 def time_to_num(t):
-    return(t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24)
+    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24)
+    
+#add to df a column of time in second
+def add_time_as_number(df,timename='_time'):
+    if not(timename in df.columns):
+        raise TypeError(timename+' do not exist in the dataframe')
+    timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
+    return(pd.concat([df,timenumberdf],axis=1))
 
 #%%
 def numbers_from_time(df,timename='_time'):
@@ -62,10 +57,10 @@ def numbers_from_time(df,timename='_time'):
         raise TypeError(timename+' do not exist in the dataframe')
     #time0=df[timename][:1]
     
-    #t0=time_to_num(timefromiso(time0.iloc[time0['Index']==0]))
+    t0=time_to_num(timefromiso(df[timename][0]))
     for time in df[timename]:
         t=timefromiso(time)
-        timenum.append(time_to_num(t))
+        timenum.append(time_to_num(t)-t0)
     return (np.array(timenum))#-timenum[0])
 
 
@@ -104,18 +99,13 @@ def mapping_var_big_than(df,namevar,namevar2,limit=None,timename='_time',title='
 #       plt.ylabel(namevar2)
 ##       
 
-#%%
-#add to df a column of time in second
-def add_time_as_number(df,timename='_time'):
-    if not(timename in df.columns):
-        raise TypeError(timename+' do not exist in the dataframe')
-    timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
-    return(pd.concat([df,timenumberdf],axis=1))
+
 #%%
 
 #calc volume as itegral of flow
 
 def volume_from_flow(flows,times):
+    """flow must be an array"""
     volume=[]
     volume.append(0)
     for i in range(0,len(flows)-1):
@@ -170,6 +160,15 @@ def selecting_cycle(arr, limit, n_point_under,n_point_over):
 
 """con  n_point_under=3, e  n_point_over=5 funziona abbastanza bene"""
 
+#%%
+
+def plot_2_var_interpoled(var1,var2,time1,time2):
+    var2_interp=np.interp(time1,time2,var2)
+    plt.figure()
+    plt.scatter(time1,var2_interp,marker='.')
+    plt.scatter(time2,var2,marker='o',alpha=0.2)
+    plt.figure()
+    plt.scatter(var2_interp,var1)
 
 #%%
 """scattr plot of all division of the df"""
@@ -181,9 +180,11 @@ def scatter_plot_cycles(df,indices,y_var,x_var='Time number'):
         
 #%%
 """analisi densità-volume"""
+"""density,time and flow should be array"""
 def density_volume(density,flows,time1,time2):
     index_flow=selecting_cycle(flows,1.,3,5) #divide the points of flow in cycles in which flow is not null avoiding fluctuations
     density_interp=np.interp(time1,time2,density) #linear interpolation of density (less sample) with the time of flow (more sample)
+    """time1 is the time whit higher number of point, time 2 less point"""
     volumes=[]
     densities=[]
     for index in index_flow:
@@ -195,7 +196,8 @@ def density_volume(density,flows,time1,time2):
 #        plt.figure()
 #        plt.scatter(time1[index[0]:index[1]],volume, marker='.')
     return(densities, volumes)
-    
+
+
     
 #%%
 """divide in cycle using total feeding time=analog 21"""
@@ -257,23 +259,6 @@ def boxplot(arr, indices):
 
 
 #%%
-    
-"""time series analysis"""
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-#%%
 """polynomial fitting"""
 def poly_fit(x,y,deg=10):
     
@@ -286,12 +271,127 @@ def poly_fit(x,y,deg=10):
     xp = np.linspace(0,x[len(x)] , len(y))
     _ = plt.plot(x, y, '.', xp, p(xp), '-', xp, p30(xp), '--')
 
+#%%
+def plot_with_same_sampling(df,namevars,path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
+    for name in namevars:
+        for name2 in namevars:
+            if name!=name2:
+                plt.figure()
+                plt.scatter(df[name],df[name2],marker='.')
+                plt.xlabel(name)
+                plt.ylabel(name2)
+                plt.title(name+'-'+name2)
+                plt.savefig(path+"/"+name+"-"+name2)
+                plt.close()
+                
+                
+def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
+                                     path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
+    time1=df1['Time number']
+    time2=df2['Time number']
+    for name1 in var1:
+        for name2 in var2:
+            var2_interp=np.interp(time1,time2,var2)
+            fig, axs = plt.subplots(2)
+            axs[0]=plt.scatter(time1,var2_interp,marker='.')
+            axs[0]=plt.scatter(time2,var2,marker='o',alpha=0.2)
+            axs[1]=plt.scatter(var2_interp,var1)
+
+
+                
+
+
+
+
+
+
+#%%
+"""pypeline for some analysis"""
+df_fast1=add_time_as_number(df_fast)
+df_slow1=add_time_as_number(df_slow)
+df_fast_2_9=df_fast1[5342:19096]
+df_slow_2_9=df_slow1[859:2059]
+
+"""for function as density_volume
+of volume_from_flow, we should pass an array, not a db series""" 
+
+
+
+#%%
+    
+"""time series analysis"""
+from statsmodels.tsa.seasonal import seasonal_decompose
+#from dateutil.parser import parse
+
+#df = pd.read_csv('https://raw.githubusercontent.com/selva86/datasets/master/a10.csv', parse_dates=['date'], index_col='date')
+import statsmodels.tsa
+
+
+
+## Multiplicative Decomposition 
+result_mul = seasonal_decompose(df_fast_2_9, model='multiplicative', extrapolate_trend='freq')
+#
+## Additive Decomposition
+#result_add = seasonal_decompose(df['value'], model='additive', extrapolate_trend='freq')
+#
+## Plot
+#plt.rcParams.update({'figure.figsize': (10,10)})
+#result_mul.plot().suptitle('Multiplicative Decompose', fontsize=22)
+#result_add.plot().suptitle('Additive Decompose', fontsize=22)
+#plt.show()
+# 
+#
+#
+#
+#
+#from pandas.plotting import autocorrelation_plot
+#
+#plt.rcParams.update({'figure.figsize':(9,5), 'figure.dpi':120})
+#autocorrelation_plot(df.value.tolist())
+#    
+
+
 
 
 #%%
 """
 PROVE FUNZIONI E PER CAPIRE I DATI
 
+"""
+
+"""read Bson file
+with open(path+"/AQS_cycle10002_phase1.bson", "rb") as rf:
+    data = bson.decode(rf.read())
+    
+#se il file è phase ha variabili normali e phase, cioè due etichette nel dict, altrimenti solo 1    
+datafr1=pd.DataFrame(data[list(data)[0]])
+if len(list(data))==2:
+    datafr_phase=pd.DataFrame(data[list(data)[1]])"""
+    
+    #%%
+    """read json files"""
+    
+"""
+with open('mapping_phasevariables.json') as json_file:
+    data_phase=json.load(json_file)
+phasevars=pd.DataFrame(data_phase['phaseIdVars'])
+"""
+#%%
+"""" read all the bson filename in the path
+#funziona
+import glob, os
+files=[]
+os.chdir(path)
+for file in glob.glob("*.bson"):
+    files.append(file)
+    """
+
+
+
+
+
+
+"""
 #%%
 #division of df analogFast about 1-9-2021 in cycles
 df_1_9=add_time_as_number(datafr[:5343])
