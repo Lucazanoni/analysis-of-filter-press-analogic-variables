@@ -49,7 +49,13 @@ def add_time_as_number(df,timename='_time'):
         raise TypeError(timename+' do not exist in the dataframe')
     timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
     return(pd.concat([df,timenumberdf],axis=1))
-
+def add_time_as_number2(df,timename='_time'):
+    timenum=[]
+    t0=time_to_num(df[timename][0])
+    for time in df[timename]:
+        timenum.append(time_to_num(time)-t0)
+    timenumberdf=pd.DataFrame({"Time number":timenum})
+    return pd.concat([df,timenumberdf],axis=1)
 #%%
 def numbers_from_time(df,timename='_time'):
     timenum=[]
@@ -232,7 +238,26 @@ def select_cycles_indices_by_time(df, times_start,times_end, timename='Time numb
         indices.append([df1.index[0]+1,df1.index[len(df1)-1]+1])
     return indices
 
+#%%
+    
 
+"""matching total feeding time with slurry density if  flow is almost constant"""
+a1=[]
+#T_alim=[]
+density=[]
+volume=[]
+for index in indices:
+    v=np.max(np.array(slow_21_22['analogSlow22'])[index[0]:index[1]])
+    volume.append(v)
+#    a=np.max(np.array(slow_21_22['analogSlow19'])[index[0]:index[1]])
+#    a1.append(a)
+    c=np.max(np.array(slow_21_22['analogSlow20'])[index[0]:index[1]])
+    density.append(c)
+#    if a>239. and a<260.:
+#        b=np.max(np.array(slow_21_22['analogSlow21'])[index[0]:index[1]])
+#        c=np.max(np.array(slow_21_22['analogSlow20'])[index[0]:index[1]])
+#        T_alim.append(b)
+#        density.append(c)
 
 
 #%%
