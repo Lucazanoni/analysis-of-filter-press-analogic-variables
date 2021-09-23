@@ -14,17 +14,38 @@ import dateutil.parser
 import warnings
 import scipy as sp
 import statistics as st
+import glob, os
 import statsmodels
 from statsmodels.tsa.stattools import acf
 from statsmodels.graphics.tsaplots import plot_acf
+path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15-22 settembre dati"
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
 
 #%%
 #read excel file
+os.chdir(path)
 df_fast=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogFast.xlsx")
 df_slow=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogSlow.xlsx")
 df_power=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power.xlsx")
 df_power1=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power (1).xlsx")
+#%%
+"""read all the filenames in the given path and return the list of filenames""" 
+def read_json_names(path):
+    files=[]
+    os.chdir(path)
+    for file in glob.glob("*.json"):
+        files.append(file)
+    return files
+"""create a global dataframe (pandas) for each json file read"""
+def json_file_to_df(filenames, path):
+    os.chdir(path)
+    for file in filenames:
+        file1=file[33:-5]
+        file1=file1.replace(" ","")
+        file1=file1.replace("(","_")
+        file1=file1.replace(")","")
+        globals()[file1]=pd.read_json(file)
+
 #%%
 #take data from iso data
 def take_datetime(df,timename='_time'):
@@ -51,9 +72,10 @@ def add_time_as_number(df,timename='_time'):
     return(pd.concat([df,timenumberdf],axis=1))
 def add_time_as_number2(df,timename='_time'):
     timenum=[]
-    t0=time_to_num(df[timename][0])
+#    t0=df[timename].iloc[0]
+#    t0=time_to_num(t0)
     for time in df[timename]:
-        timenum.append(time_to_num(time)-t0)
+        timenum.append(time_to_num(time))#-t0)
     timenumberdf=pd.DataFrame({"Time number":timenum})
     return pd.concat([df,timenumberdf],axis=1)
 #%%
@@ -61,13 +83,12 @@ def numbers_from_time(df,timename='_time'):
     timenum=[]
     if not(timename in df.columns):
         raise TypeError(timename+' do not exist in the dataframe')
-    #time0=df[timename][:1]
     
-    t0=time_to_num(timefromiso(df[timename][0]))
+    #t0=time_to_num(timefromiso(df[timename][0]))
     for time in df[timename]:
         t=timefromiso(time)
-        timenum.append(time_to_num(t)-t0)
-    return (np.array(timenum))#-timenum[0])
+        timenum.append(time_to_num(t))#-t0)
+    return (np.array(timenum))
 
 
 
@@ -210,15 +231,16 @@ def density_volume(density,flows,time1,time2):
 #
 def select_cycle2_time(df,var,timename='Time number'):
     j=0
+    #j= variabile di ciclo: 0= ciclo spento, 1=ciclo acceso
     start_i=[]
     end_i=[]
     times_start=[]
     times_end=[]
     for i in range(0,len(df[var])):
-        if (df[var][i]!=0 and j==0):
+        if (df[var][i]!=0 and not(np.isnan(df[var][i])) and j==0):
             start_i.append(i)
             j=1
-        if (df[var][i]==0 and j==1):
+        if ((df[var][i]==0 or np.isnan(df[var][i])) and j==1):
             end_i.append(i)
             j=0
     for i in range (0,len(end_i)):
@@ -226,7 +248,18 @@ def select_cycle2_time(df,var,timename='Time number'):
         times_end.append(df[timename][end_i[i]])
     return (times_start,times_end)
 
-
+#def select_cycle_indices2(df,var,timename='Time number'):
+#    j=0
+#    start_i=[]
+#    end_i=[]
+#    for i in range(0,len(df[var])):
+#        if (df[var][i]!=0 and j==0):
+#            start_i.append(i)
+#            j=1
+#        if (df[var][i]==0 and j==1):
+#            end_i.append(i)
+#            j=0
+#    return (start_i, end_i)
 
 #if we have time start and time end, this takes the indices of start and end of the cycle
 
@@ -243,21 +276,22 @@ def select_cycles_indices_by_time(df, times_start,times_end, timename='Time numb
 
 """matching total feeding time with slurry density if  flow is almost constant"""
 a1=[]
-#T_alim=[]
+T_alim=[]
 density=[]
-volume=[]
-for index in indices:
-    v=np.max(np.array(slow_21_22['analogSlow22'])[index[0]:index[1]])
-    volume.append(v)
-#    a=np.max(np.array(slow_21_22['analogSlow19'])[index[0]:index[1]])
-#    a1.append(a)
-    c=np.max(np.array(slow_21_22['analogSlow20'])[index[0]:index[1]])
-    density.append(c)
-#    if a>239. and a<260.:
-#        b=np.max(np.array(slow_21_22['analogSlow21'])[index[0]:index[1]])
-#        c=np.max(np.array(slow_21_22['analogSlow20'])[index[0]:index[1]])
-#        T_alim.append(b)
-#        density.append(c)
+#volume=[]
+for index in indices_slow:
+#    v=np.max(np.array(dfSlow['analogSlow22'])[index[0]:index[1]])
+#    volume.append(v)
+    a=np.max(np.array(dfSlow['analogSlow19'])[index[0]:index[1]])
+    a1.append(a)
+#    c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
+#    density.append(c)
+    if a>220. and a<240.:
+        b=np.max(np.array(dfSlow['analogSlow21'])[index[0]:index[1]])
+        c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
+        T_alim.append(b)
+        density.append(c)
+plt.scatter(T_alim,density)
 
 
 #%%
