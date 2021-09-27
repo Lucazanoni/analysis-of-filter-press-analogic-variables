@@ -18,17 +18,20 @@ import glob, os
 import statsmodels
 from statsmodels.tsa.stattools import acf
 from statsmodels.graphics.tsaplots import plot_acf
-path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15-22 settembre dati"
+path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15-22 settembre dati/bson"
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
 
 #%%
 #read excel file
-os.chdir(path)
-df_fast=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogFast.xlsx")
-df_slow=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogSlow.xlsx")
-df_power=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power.xlsx")
-df_power1=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power (1).xlsx")
+#os.chdir(path)
+#df_fast=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogFast.xlsx")
+#df_slow=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_AnalogSlow.xlsx")
+#df_power=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power.xlsx")
+#df_power1=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power (1).xlsx")
 #%%
+
+"""READING AND OPENING FILES JSON AND BSON"""
+
 """read all the filenames in the given path and return the list of filenames""" 
 def read_json_names(path):
     files=[]
@@ -46,7 +49,158 @@ def json_file_to_df(filenames, path):
         file1=file1.replace(")","")
         globals()[file1]=pd.read_json(file)
 
+"""create a variable for phase of interst with the name of all the file of that phase """
+"""number of phases=array with the numbers of the phases of interest"""
+"""example:  make_bson_list_for_phase(path_prova,[1,2,3])"""
+def make_bson_list_for_phase(path,numbers_of_phases):
+    files=[]
+    os.chdir(path)
+    for file in glob.glob("*.bson"):
+        files.append(file)
+    for i in numbers_of_phases:
+        names=[]
+        for file in files:
+            if file[12:18]==('phase'+str(i)):
+                names.append(file)
+        globals()['phase'+str(i)]=names
+        
+def df_from_bson(filename,path):
+    with open(path+'/'+filename, "rb") as rf:
+        data = bson.decode(rf.read())
+    df=pd.DataFrame(data[list(data)[0]])
+    df.dropna(subset = ['timestamp'], inplace=True)
+    return df
+
+def df_from_phase_bson(filename, path):
+    with open(path+'/'+filename, "rb") as rf:
+        data = bson.decode(rf.read())
+    df=pd.DataFrame(data[list(data)[0]])
+    df.dropna(subset = ['timestamp'], inplace=True)
+    df_phase=pd.DataFrame(data[list(data)[1]])
+    df_phase.dropna(subset = ['timestamp'], inplace=True)
+    return df,df_phase                
+    
+def cycle_list_file(n_cycle,path):
+    files=[]
+    os.chdir(path)
+    for file in glob.glob("*.bson"):
+        files.append(file)
+    names=[]
+    for file in files:
+        if file[9:11]==str(n_cycle):
+            names.append(file)
+            
+    return names
+
+
+def volume_density_bson(files,path):
+    volume=[]
+    density=[]
+    for file in files:
+        df=df_from_bson(file, path)
+        volume.append(max(np.array(df['PhaseVars.phaseVariable6'])))
+        density.append(max(np.array(df['PhaseVars.phaseVariable9'])))
+    plt.scatter(volume,density)
+    return(volume,density)
+def time_density_feeding_bson(files,path):
+    time=[]
+    density=[]
+    finalfeeding=[]
+    initialfeeding=[]
+    for file in files:
+        df=df_from_bson(file, path)
+        time.append(max(np.array(df['PhaseVars.phaseVariable1'])))
+        density.append(max(np.array(df['PhaseVars.phaseVariable9'])))
+        finalfeeding.append(max(np.array(df['PhaseVars.phaseVariable3'])))
+        initialfeeding.append(max(np.array(df['PhaseVars.phaseVariable2'])))
+    return(time,density,initialfeeding,finalfeeding)
+
+
 #%%
+def func(x,a,b):
+    return x*a+b
+
+from scipy.optimize import curve_fit
+#from pylab import *
+def linear_fit(x,y):
+    x=np.array(x)
+    y=np.array(y)
+    popt, pcov = curve_fit(func, x,y)
+    perr=np.sqrt(np.diag(pcov))
+    popt_up=popt+perr
+    popt_dw=popt-perr
+    fit = func(x, *popt)
+    fit_up = func(x, *popt_up)
+    fit_dw = func(x, *popt_dw)
+    fig, ax = plt.subplots(1)
+    plt.scatter(x, y, label='data')
+    
+    sorted_index = np.argsort(x)
+    fit_up = [fit_up[i] for i in sorted_index]
+    fit_dw = [fit_dw[i] for i in sorted_index]
+    plt.plot(x, fit, 'r', lw=2, label='best fit curve')
+    ax.fill_between(np.sort(x), fit_up, fit_dw, alpha=.25, label='1-sigma interval')
+    
+    return popt,perr
+#%%
+def neg_exp(x,a,b,c,d):
+    return a*np.exp(-b*(x**c))+d
+def exp_fit(x,y):
+    x=np.array(x)
+    y=np.array(y)
+    popt, pcov = curve_fit(neg_exp, x,y,p0=[160,0.16,0.5,10])#p0 take from a previous fit with no p0 parameter
+    perr=np.sqrt(np.diag(pcov))
+    fit = neg_exp(x, *popt)
+    plt.scatter(x, y, label='data',marker='.')   
+    plt.plot(x, fit, 'r', lw=2, label='best fit curve')
+    return popt,perr
+
+#%%
+def fitting_values_feeding_law(filenames,path,figure=False):
+    fit_values=[]
+    fit_err=[]
+    for file in filenames:
+        if figure:
+            plt.figure()
+        df,df_phase=df_from_phase_bson(file,path)
+        df=add_time_as_number(df,'timestamp')
+        x=df['Time number']
+        y=df['Analogs.analog1']
+        val,err=exp_fit(x,y)
+        fit_values.append(val)
+        fit_err.append(err)
+    return fit_values,fit_err
+
+
+
+#%%
+"""analysis of feeding and pressure in a single phase""" 
+
+def feeding_pressure_in_a_phase(phase_file,path,deg1,deg2):
+#    poly2=[]
+#    poly4=[]
+    for file in phase_file:
+        df,df_phase=df_from_phase_bson(file,path)
+        plt.figure()
+        df.dropna(subset = ["Analogs.analog1","Analogs.analog3"], inplace=True)       
+        poly_fit(df["Analogs.analog1"],df["Analogs.analog3"],deg1,deg2)
+
+    
+#%%    
+"""little pipeline"""
+#make_bson_list_for_phase(path_bson,[2,3])
+t,d,in_fed,fin_fed=time_density_feeding_bson(phase3,path_bson)
+t1=[]
+d1=[]
+for i in range(0, len(t)): 
+    if (in_fed[i]>230 and in_fed[i]<255 and fin_fed[i]>3 and fin_fed[i]<8):
+        t1.append(t[i])
+        d1.append(d[i])
+plt.scatter(t1,d1)
+plt.yscale("log")
+#%%
+    
+"""TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
 #take data from iso data
 def take_datetime(df,timename='_time'):
     dates=[]
@@ -55,7 +209,7 @@ def take_datetime(df,timename='_time'):
         dates.append(date)
     date=pd.DataFrame({'time':dates})
     return date
-#%%
+
 #take time from iso 8601 data
 def timefromiso(dataiso):
     return datetime.datetime.fromisoformat(dataiso[:-1])
@@ -65,11 +219,14 @@ def time_to_num(t):
     return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24)
     
 #add to df a column of time in second
+"""if time column is in iso format"""  
 def add_time_as_number(df,timename='_time'):
     if not(timename in df.columns):
         raise TypeError(timename+' do not exist in the dataframe')
     timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
     return(pd.concat([df,timenumberdf],axis=1))
+    
+"""if time column is in datetime format"""    
 def add_time_as_number2(df,timename='_time'):
     timenum=[]
 #    t0=df[timename].iloc[0]
@@ -78,16 +235,16 @@ def add_time_as_number2(df,timename='_time'):
         timenum.append(time_to_num(time))#-t0)
     timenumberdf=pd.DataFrame({"Time number":timenum})
     return pd.concat([df,timenumberdf],axis=1)
-#%%
+
 def numbers_from_time(df,timename='_time'):
     timenum=[]
     if not(timename in df.columns):
         raise TypeError(timename+' do not exist in the dataframe')
     
-    #t0=time_to_num(timefromiso(df[timename][0]))
+    t0=time_to_num(timefromiso(df[timename][0]))
     for time in df[timename]:
         t=timefromiso(time)
-        timenum.append(time_to_num(t))#-t0)
+        timenum.append(time_to_num(t)-t0)
     return (np.array(timenum))
 
 
@@ -225,7 +382,6 @@ def density_volume(density,flows,time1,time2):
     return(densities, volumes)
 
 
-    
 #%%
 """divide in cycle using total feeding time=analog 21"""
 #
@@ -248,20 +404,7 @@ def select_cycle2_time(df,var,timename='Time number'):
         times_end.append(df[timename][end_i[i]])
     return (times_start,times_end)
 
-#def select_cycle_indices2(df,var,timename='Time number'):
-#    j=0
-#    start_i=[]
-#    end_i=[]
-#    for i in range(0,len(df[var])):
-#        if (df[var][i]!=0 and j==0):
-#            start_i.append(i)
-#            j=1
-#        if (df[var][i]==0 and j==1):
-#            end_i.append(i)
-#            j=0
-#    return (start_i, end_i)
 
-#if we have time start and time end, this takes the indices of start and end of the cycle
 
 def select_cycles_indices_by_time(df, times_start,times_end, timename='Time number'):
     indices=[]
@@ -272,27 +415,54 @@ def select_cycles_indices_by_time(df, times_start,times_end, timename='Time numb
     return indices
 
 #%%
-    
+
+def final_feeding_delivery_on_pressure(df,indices,limit_pressure):
+    feed_var='analogFast1'
+    pressure_var='analogFast3'
+    for i in range(0,indices[1]-indices[0]):
+        j=indices[1]-i
+        if df[pressure_var][j]>limit_pressure:
+            return df[feed_var][j-5]
+
+#%%
 
 """matching total feeding time with slurry density if  flow is almost constant"""
-a1=[]
+fed_in=[]
 T_alim=[]
 density=[]
-#volume=[]
+fed_fin=[]
+t_s,t_e=select_cycle2_time(dfSlow,'analogSlow21')
+indices_slow=select_cycles_indices_by_time(dfSlow,t_s,t_e)
+indices_fast=select_cycles_indices_by_time(dfFast,t_s,t_e)
+indices_slow=indices_slow[1:]
+indices_fast=indices_fast[1:]
 for index in indices_slow:
-#    v=np.max(np.array(dfSlow['analogSlow22'])[index[0]:index[1]])
-#    volume.append(v)
     a=np.max(np.array(dfSlow['analogSlow19'])[index[0]:index[1]])
-    a1.append(a)
+    fed_in.append(a)
+for index in indices_fast:
+    a= final_feeding_delivery_on_pressure(dfFast,index,14)
+    fed_fin.append(a)  
 #    c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
 #    density.append(c)
-    if a>220. and a<240.:
-        b=np.max(np.array(dfSlow['analogSlow21'])[index[0]:index[1]])
-        c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
+for i in range(0,len(indices_slow)):
+    if (fed_in[i]>200. and fed_in[i]<260. and fed_fin[i]>0. and fed_fin[i]<10.):
+        b=np.max(np.array(dfSlow['analogSlow21'])[indices_slow[i][0]:indices_slow[i][1]])
+        c=np.max(np.array(dfSlow['analogSlow20'])[indices_slow[i][0]:indices_slow[i][1]])
         T_alim.append(b)
         density.append(c)
 plt.scatter(T_alim,density)
+#%%
 
+import scipy
+lin_reg=scipy.stats.linregress(T_alim,density)
+xn=np.linspace(min(T_alim),max(T_alim),200)
+yn = lin_reg.intercept+lin_reg.slope*xn
+
+plt.plot(T_alim,density, 'or')
+plt.plot(xn,yn)
+plt.plot(xn,yn+lin_reg.stderr)
+plt.plot(xn,yn-lin_reg.stderr)
+plt.show()
 
 #%%
 
@@ -319,15 +489,15 @@ def boxplot(arr, indices):
 
 #%%
 """polynomial fitting"""
-def poly_fit(x,y,deg=10):
+def poly_fit(x,y,deg1=10,deg2=30):
     
     
-    z=np.polyfit(x, y,deg)
+    z=np.polyfit(x, y,deg1)
     p=np.poly1d(z)
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', np.RankWarning)
-        p30 = np.poly1d(np.polyfit(x, y, 30))
-    xp = np.linspace(0,x[len(x)] , len(y))
+        p30 = np.poly1d(np.polyfit(x, y, deg2))
+    xp = np.linspace(0,max(x) , len(y))
     _ = plt.plot(x, y, '.', xp, p(xp), '-', xp, p30(xp), '--')
 
 #%%
@@ -374,127 +544,4 @@ df_slow_2_9=df_slow1[859:2059]
 """for function as density_volume
 of volume_from_flow, we should pass an array, not a db series""" 
 
-
-
-#%%
-    
-"""time series analysis"""
-from statsmodels.tsa.seasonal import seasonal_decompose
-#from dateutil.parser import parse
-
-#df = pd.read_csv('https://raw.githubusercontent.com/selva86/datasets/master/a10.csv', parse_dates=['date'], index_col='date')
-import statsmodels.tsa
-
-
-
-## Multiplicative Decomposition 
-result_mul = seasonal_decompose(df_fast_2_9, model='multiplicative', extrapolate_trend='freq')
-#
-## Additive Decomposition
-#result_add = seasonal_decompose(df['value'], model='additive', extrapolate_trend='freq')
-#
-## Plot
-#plt.rcParams.update({'figure.figsize': (10,10)})
-#result_mul.plot().suptitle('Multiplicative Decompose', fontsize=22)
-#result_add.plot().suptitle('Additive Decompose', fontsize=22)
-#plt.show()
-# 
-#
-#
-#
-#
-#from pandas.plotting import autocorrelation_plot
-#
-#plt.rcParams.update({'figure.figsize':(9,5), 'figure.dpi':120})
-#autocorrelation_plot(df.value.tolist())
-#    
-
-
-
-
-#%%
-"""
-PROVE FUNZIONI E PER CAPIRE I DATI
-
-"""
-
-"""read Bson file
-with open(path+"/AQS_cycle10002_phase1.bson", "rb") as rf:
-    data = bson.decode(rf.read())
-    
-#se il file è phase ha variabili normali e phase, cioè due etichette nel dict, altrimenti solo 1    
-datafr1=pd.DataFrame(data[list(data)[0]])
-if len(list(data))==2:
-    datafr_phase=pd.DataFrame(data[list(data)[1]])"""
-    
-    #%%
-    """read json files"""
-    
-"""
-with open('mapping_phasevariables.json') as json_file:
-    data_phase=json.load(json_file)
-phasevars=pd.DataFrame(data_phase['phaseIdVars'])
-"""
-#%%
-"""" read all the bson filename in the path
-#funziona
-import glob, os
-files=[]
-os.chdir(path)
-for file in glob.glob("*.bson"):
-    files.append(file)
-    """
-
-
-
-
-
-
-"""
-#%%
-#division of df analogFast about 1-9-2021 in cycles
-df_1_9=add_time_as_number(datafr[:5343])
-#timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df_1_9,'_time')})
-#df_1_9=pd.concat([df_1_9,timenumberdf],axis=1)
-
-#timefs_1_9=numbers_from_time(df_1_9,'_time')
-df_1_9_cut1=df_1_9[116:880]
-df_1_9_cut2=df_1_9[1220:1574]
-   
-df_1_9_cut3=df_1_9[1585:2601]  
-   
-df_1_9_cut4=df_1_9[2680:5155]
-df_1_9_cut5=df_1_9[5167:5247]
-df_sl_1_9=add_time_as_number(datafrsl[:858])
-#%%
-   
-   
-df_1_9=datafr[:5343]
-timefs_1_9=numbers_from_time(df_1_9,'_time')   
-timesl_1_9=numbers_from_time(df_sl_1_9,'_time')
-plt.figure()
-plt.scatter(timesl_1_9,df_sl_1_9['analogSlow8'],marker='.')
-
-plt.scatter(timefs_1_9,df_1_9['analogFast1'],marker='.')
-plt.figure()
-plt.scatter(timesl_1_9,df_sl_1_9['analogSlow8'],marker='.')
-
-plt.scatter(timefs_1_9,df_1_9['analogFast3'],marker='.')
-
-#%%
-plt.figure()
-plt.scatter(df_sl_1_9['Time number'],df_sl_1_9['analogSlow8'],marker='.')
-plt.scatter(df_1_9['Time number'],df_1_9['analogFast1'],marker='.')
-plt.scatter(df_1_9['Time number'],df_1_9['analogFast3'],marker='.')
-
-
-
-#%%
-
-fig, axs = plt.subplots(3, 1)
-axs[0].scatter(datafr1['Time number'],datafr1['Analogs.analog1'],marker='.')
-axs[1].scatter(datafr1['Analogs.analog1'],datafr1['Analogs.analog3'],marker='.')
-axs[2].scatter(datafr1['Time number'],datafr1['Analogs.analog3'],marker='.')
-
-"""
 
