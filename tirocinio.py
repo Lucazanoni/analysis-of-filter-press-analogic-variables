@@ -17,9 +17,11 @@ import statistics as st
 import glob, os
 import statsmodels
 from statsmodels.tsa.stattools import acf
+import seaborn as sns
 from statsmodels.graphics.tsaplots import plot_acf
-path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15-22 settembre dati/bson"
+path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/bson"
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
+path2="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/power"
 
 #%%
 #read excel file
@@ -29,7 +31,15 @@ path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
 #df_power=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power.xlsx")
 #df_power1=pd.read_excel(path+"/excel_csv/c6378abbfb4b4c079a63dd5489bed1e6_Power (1).xlsx")
 #%%
+analog_not_measured=['Analogs.analog2','Analogs.analog4','Analogs.analog5','Analogs.analog6',
+                     'Analogs.analog7','Analogs.analog8','Analogs.analog9','Analogs.analog10',
+                     'Analogs.analog11','Analogs.analog12','Analogs.analog17','Analogs.analog19',
+                     'Analogs.analog23','Analogs.analog30','Analogs.analog31','Analogs.analog32',
+                     'Analogs.analog33','Analogs.analog34','Analogs.analog35','Analogs.analog36',
+                     'Analogs.analog37','Analogs.analog38','Analogs.analog39','Analogs.analog40']
 
+analog_process=['Analogs.analog1','Analogs.analog3','Analogs.analog20','Analogs.analog29']
+#%%
 """READING AND OPENING FILES JSON AND BSON"""
 
 """read all the filenames in the given path and return the list of filenames""" 
@@ -62,15 +72,17 @@ def make_bson_list_for_phase(path,numbers_of_phases):
         for file in files:
             if file[12:18]==('phase'+str(i)):
                 names.append(file)
+            if file[13:19]==('phase'+str(i)):
+                names.append(file)
         globals()['phase'+str(i)]=names
-        
+    """generate a dataframe pandas from bson file"""    
 def df_from_bson(filename,path):
     with open(path+'/'+filename, "rb") as rf:
         data = bson.decode(rf.read())
     df=pd.DataFrame(data[list(data)[0]])
     df.dropna(subset = ['timestamp'], inplace=True)
     return df
-
+"""generate a dataframe pandas from bson file for phase variable, in whing there are 2 db, one with analogs and another with phase"""
 def df_from_phase_bson(filename, path):
     with open(path+'/'+filename, "rb") as rf:
         data = bson.decode(rf.read())
@@ -79,7 +91,9 @@ def df_from_phase_bson(filename, path):
     df_phase=pd.DataFrame(data[list(data)[1]])
     df_phase.dropna(subset = ['timestamp'], inplace=True)
     return df,df_phase                
+   
     
+"""select all file in path that has a certain number in position 9-10, like AQS_cycle62_phase2.... has number 62"""
 def cycle_list_file(n_cycle,path):
     files=[]
     os.chdir(path)
@@ -91,15 +105,38 @@ def cycle_list_file(n_cycle,path):
             names.append(file)
             
     return names
-
+"""take the max of a certain phase of each cycle foreach of the variable of interest"""
+def max_of_phase(files, path,variables):
+    x=np.zeros([len(files),len(variables)])
+    time=[]
+    j=0
+    for file in files:
+        x1=np.zeros(len(variables))
+        df,df_phase=df_from_phase_bson(file, path)
+        i=0
+        for var in variables:
+            x1[i]=max(np.array(df_phase[var]))
+            i=i+1
+        x[j,:]=x1
+        df_phase=add_time_as_timeseries(df_phase)
+        time.append(df_phase['timeserie'][len(df_phase)-1])
+        j=j+1
+    sorted_index = np.argsort(time)
+    x1=np.zeros([len(files),len(variables)])
+    time = [time[i] for i in sorted_index]
+    j=0
+    for i in sorted_index:
+        x1[j,:]=x[i,:]
+        j=j+1
+    return x1,time
 
 def volume_density_bson(files,path):
     volume=[]
     density=[]
     for file in files:
-        df=df_from_bson(file, path)
-        volume.append(max(np.array(df['PhaseVars.phaseVariable6'])))
-        density.append(max(np.array(df['PhaseVars.phaseVariable9'])))
+        df,df_phase=df_from_phase_bson(file, path)
+        volume.append(max(np.array(df_phase['PhaseVars.phaseVariable6'])))
+        density.append(max(np.array(df_phase['PhaseVars.phaseVariable9'])))
     plt.scatter(volume,density)
     return(volume,density)
 def time_density_feeding_bson(files,path):
@@ -108,21 +145,61 @@ def time_density_feeding_bson(files,path):
     finalfeeding=[]
     initialfeeding=[]
     for file in files:
-        df=df_from_bson(file, path)
-        time.append(max(np.array(df['PhaseVars.phaseVariable1'])))
-        density.append(max(np.array(df['PhaseVars.phaseVariable9'])))
-        finalfeeding.append(max(np.array(df['PhaseVars.phaseVariable3'])))
-        initialfeeding.append(max(np.array(df['PhaseVars.phaseVariable2'])))
-    return(time,density,initialfeeding,finalfeeding)
+        df,df_phase=df_from_phase_bson(file, path)
+        time.append(max(np.array(df_phase['PhaseVars.phaseVariable1'])))
+        density.append(max(np.array(df_phase['PhaseVars.phaseVariable9'])))
+        finalfeeding.append(max(np.array(df_phase['PhaseVars.phaseVariable3'])))
+        initialfeeding.append(max(np.array(df_phase['PhaseVars.phaseVariable2'])))
+    return(time,initialfeeding,finalfeeding,density)
 
-
+def selected_time_density(time,density,initialfeeding,finalfeeding,limits_initialfeedig=[200,230],limits_final=[3,10]):
+    d=[]
+    t=[]
+    in_fed=[]
+    fin_fed=[]
+    for i in range(len(time)):
+        if(initialfeeding[i]>=limits_initialfeedig[0] and initialfeeding[i]<=limits_initialfeedig[1] 
+        and finalfeeding[i]>=limits_final[0] and finalfeeding[i]<=limits_final[1]):
+            t.append(time[i])
+            d.append(density[i])
+            in_fed.append(initialfeeding[i])
+            fin_fed.append(finalfeeding[i])
+    x=np.zeros([len(d),4])
+    x[:,0]=t
+    x[:,1]=in_fed
+    x[:,2]=fin_fed
+    x[:,3]=d
+    return x
+"""calculate the daily mean of a cartain variable"""
+def mean_by_day(arr,dates):
+    day=dates[0].day
+    means=[]
+    meanday=[]
+    st_err=[]
+    dates2=[]
+    for i in range(len(dates)):
+        if dates[i].day==day:
+            meanday.append(arr[i])
+        if dates[i].day!=day:
+            means.append(np.mean(meanday))
+            st_err.append(np.std(meanday))
+            meanday=[]
+            meanday.append(arr[i])
+            dates2.append(datetime.datetime(dates[i-1].year,dates[i-1].month,dates[i-1].day))
+            day=dates[i].day
+        if i==(len(dates)-1):
+            means.append(np.mean(meanday))
+            st_err.append(np.std(meanday))
+            dates2.append(datetime.datetime(dates[i].year,dates[i].month,dates[i].day))
+    return means,st_err,dates2
+            
 #%%
 def func(x,a,b):
     return x*a+b
 
 from scipy.optimize import curve_fit
 #from pylab import *
-def linear_fit(x,y):
+def linear_fit(x,y,banderror=False):
     x=np.array(x)
     y=np.array(y)
     popt, pcov = curve_fit(func, x,y)
@@ -139,10 +216,30 @@ def linear_fit(x,y):
     fit_up = [fit_up[i] for i in sorted_index]
     fit_dw = [fit_dw[i] for i in sorted_index]
     plt.plot(x, fit, 'r', lw=2, label='best fit curve')
-    ax.fill_between(np.sort(x), fit_up, fit_dw, alpha=.25, label='1-sigma interval')
+    if banderror:
+        ax.fill_between(np.sort(x), fit_up, fit_dw, alpha=.25, label='1-sigma interval')
     
     return popt,perr
+
+
+def multiple_linear_regression(x,y):
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LinearRegression
+    from sklearn.metrics import r2_score
+    from sklearn.metrics import mean_squared_error
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
+    LR = LinearRegression() 
+    LR.fit(x_train,y_train)
+    y_prediction =  LR.predict(x_test)
+    score=r2_score(y_test,y_prediction)
+    print('r2 score is ',score)
+    print('mean_sqrd_error is==',mean_squared_error(y_test,y_prediction))
+    print('root_mean_squared error of is==',np.sqrt(mean_squared_error(y_test,y_prediction)))
+    return LR
+
 #%%
+    
+"""fitting values of a curve as a*e^(-b*x^c)+d""" 
 def neg_exp(x,a,b,c,d):
     return a*np.exp(-b*(x**c))+d
 def exp_fit(x,y):
@@ -155,7 +252,7 @@ def exp_fit(x,y):
     plt.plot(x, fit, 'r', lw=2, label='best fit curve')
     return popt,perr
 
-#%%
+
 def fitting_values_feeding_law(filenames,path,figure=False):
     fit_values=[]
     fit_err=[]
@@ -170,8 +267,6 @@ def fitting_values_feeding_law(filenames,path,figure=False):
         fit_values.append(val)
         fit_err.append(err)
     return fit_values,fit_err
-
-
 
 #%%
 """analysis of feeding and pressure in a single phase""" 
@@ -188,16 +283,14 @@ def feeding_pressure_in_a_phase(phase_file,path,deg1,deg2):
     
 #%%    
 """little pipeline"""
-#make_bson_list_for_phase(path_bson,[2,3])
-t,d,in_fed,fin_fed=time_density_feeding_bson(phase3,path_bson)
-t1=[]
-d1=[]
-for i in range(0, len(t)): 
-    if (in_fed[i]>230 and in_fed[i]<255 and fin_fed[i]>3 and fin_fed[i]<8):
-        t1.append(t[i])
-        d1.append(d[i])
-plt.scatter(t1,d1)
-plt.yscale("log")
+df2,df_p_var2=df_from_phase_bson(phase2[12],path1)
+df3,df_p_var3=df_from_phase_bson(phase3[12],path1)
+for index1 in df2.columns:
+    index2 =df2.columns[1]
+    if (index1 not in analog_not_measured and index2 not in analog_not_measured and index1!='timestamp' and index2!='timestamp'):
+        plt.figure()
+        plt.scatter(df2[index1],df2[index2],marker='.')
+        plt.title(index1+'-'+index2)
 #%%
     
 """TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
@@ -229,10 +322,10 @@ def add_time_as_number(df,timename='_time'):
 """if time column is in datetime format"""    
 def add_time_as_number2(df,timename='_time'):
     timenum=[]
-#    t0=df[timename].iloc[0]
-#    t0=time_to_num(t0)
+    t0=df[timename].iloc[0]
+    t0=time_to_num(t0)
     for time in df[timename]:
-        timenum.append(time_to_num(time))#-t0)
+        timenum.append(time_to_num(time)-t0)
     timenumberdf=pd.DataFrame({"Time number":timenum})
     return pd.concat([df,timenumberdf],axis=1)
 
@@ -247,8 +340,12 @@ def numbers_from_time(df,timename='_time'):
         timenum.append(time_to_num(t)-t0)
     return (np.array(timenum))
 
-
-
+def add_time_as_timeseries(df,timename='timestamp'):
+    timeserie=[]
+    for time in df[timename]:
+        timeserie.append(datetime.datetime.fromisoformat(time[:-1]))
+    timeserie=pd.DataFrame({'timeserie':timeserie})
+    return pd.concat([df,timeserie],axis=1)
 #%%
 
 #mappo le due variabili, se una è il tempo solo variabile tempo, altrimenti faccio x-y, x-t e y-t
@@ -318,21 +415,21 @@ def selecting_cycle(arr, limit, n_point_under,n_point_over):
         index_start=0
         index_end=0
         
-        #        h=False
-        k=False
+
+        k=False #k is a variable of status
         count1=0 #count1 count the numbers over limit
-        count2=0
+        count2=0 #count1 count the numbers under limit
         for i in range(0,len(arr)):
             if arr[i]>limit:
-        #                h=True
+
                 count1=count1+1
                 count2=0
             else:
-        #                h=False
+
                 count1=0
                 count2=count2+1
             if (count1==n_point_under  and not(k)):
-                index_start=i-n_point_under
+                index_start=i-n_point_under+1
                 k=True
             if (count2==n_point_over and k):
                 index_end=i-n_point_over
@@ -380,13 +477,25 @@ def density_volume(density,flows,time1,time2):
 #        plt.figure()
 #        plt.scatter(time1[index[0]:index[1]],volume, marker='.')
     return(densities, volumes)
-
+#%%
+def integrals_of_cycles(arr,time,cycle_index):
+    total_integral=np.zeros(len(cycle_index))
+    time_integral=np.zeros(len(arr))
+    j=0
+    for index in cycle_index:
+        total_integral[j]=np.trapz(arr[index[0]:index[1]],x=time[index[0]:index[1]])
+        j=j+1
+        for i in range(index[0],index[1]):
+            if i==0:
+                time_integral[i]=0    
+            time_integral[i]=time_integral[i-1]+np.trapz([arr[i-1],arr[i]],x=[time[i-1],time[i]])
+    return total_integral,time_integral
 
 #%%
 """divide in cycle using total feeding time=analog 21"""
 #
 def select_cycle2_time(df,var,timename='Time number'):
-    j=0
+    j=0 
     #j= variabile di ciclo: 0= ciclo spento, 1=ciclo acceso
     start_i=[]
     end_i=[]
@@ -425,80 +534,280 @@ def final_feeding_delivery_on_pressure(df,indices,limit_pressure):
             return df[feed_var][j-5]
 
 #%%
-
-"""matching total feeding time with slurry density if  flow is almost constant"""
-fed_in=[]
-T_alim=[]
-density=[]
-fed_fin=[]
-t_s,t_e=select_cycle2_time(dfSlow,'analogSlow21')
-indices_slow=select_cycles_indices_by_time(dfSlow,t_s,t_e)
-indices_fast=select_cycles_indices_by_time(dfFast,t_s,t_e)
-indices_slow=indices_slow[1:]
-indices_fast=indices_fast[1:]
-for index in indices_slow:
-    a=np.max(np.array(dfSlow['analogSlow19'])[index[0]:index[1]])
-    fed_in.append(a)
-for index in indices_fast:
-    a= final_feeding_delivery_on_pressure(dfFast,index,14)
-    fed_fin.append(a)  
-#    c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
-#    density.append(c)
-for i in range(0,len(indices_slow)):
-    if (fed_in[i]>200. and fed_in[i]<260. and fed_fin[i]>0. and fed_fin[i]<10.):
-        b=np.max(np.array(dfSlow['analogSlow21'])[indices_slow[i][0]:indices_slow[i][1]])
-        c=np.max(np.array(dfSlow['analogSlow20'])[indices_slow[i][0]:indices_slow[i][1]])
-        T_alim.append(b)
-        density.append(c)
-plt.scatter(T_alim,density)
-#%%
-
-import scipy
-lin_reg=scipy.stats.linregress(T_alim,density)
-xn=np.linspace(min(T_alim),max(T_alim),200)
-yn = lin_reg.intercept+lin_reg.slope*xn
-
-plt.plot(T_alim,density, 'or')
-plt.plot(xn,yn)
-plt.plot(xn,yn+lin_reg.stderr)
-plt.plot(xn,yn-lin_reg.stderr)
-plt.show()
-
-#%%
-
-"""we want to compare some measure of different cycle
-this function, giving the array of values, theindices of the cycles and the measure we want, give a statistic about the cycles
-"""
-
-def cycle_stat_measure(arr, indices,statistic,statistic_libr):
-    """indices should be a matrix Nx2 or a array of array 2x1"""
-    vals=[]
-    module = __import__(statistic_libr)
-    method_to_call = getattr(module, statistic)
-    for index in indices:
-        vals.append(method_to_call(arr[index[0]:index[1]]))
-    return vals
-
-def boxplot(arr, indices):
-    plt.figure()
-    data=[]
-    for index in indices:
-        data.append(arr[index[0]:index[1]])
-    plt.boxplot(data)
-
-
-#%%
-"""polynomial fitting"""
-def poly_fit(x,y,deg1=10,deg2=30):
+            
+def linear_regression_assumptions(features, label, feature_names=None):
+    """
+    Tests a linear regression on the model to see if assumptions are being met
+    """
+    from sklearn.linear_model import LinearRegression
     
+    # Setting feature names to x1, x2, x3, etc. if they are not defined
+    if feature_names is None:
+        feature_names = ['X'+str(feature+1) for feature in range(features.shape[1])]
     
-    z=np.polyfit(x, y,deg1)
-    p=np.poly1d(z)
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', np.RankWarning)
-        p30 = np.poly1d(np.polyfit(x, y, deg2))
-    xp = np.linspace(0,max(x) , len(y))
-    _ = plt.plot(x, y, '.', xp, p(xp), '-', xp, p30(xp), '--')
+    print('Fitting linear regression')
+    # Multi-threading if the dataset is a size where doing so is beneficial
+    if features.shape[0] < 100000:
+        model = LinearRegression(n_jobs=-1)
+    else:
+        model = LinearRegression()
+        
+    model.fit(features, label)
+    
+    # Returning linear regression R^2 and coefficients before performing diagnostics
+    r2 = model.score(features, label)
+    print()
+    print('R^2:', r2, '\n')
+    print('Coefficients')
+    print('-------------------------------------')
+    print('Intercept:', model.intercept_)
+    
+    for feature in range(len(model.coef_)):
+        print('{0}: {1}'.format(feature_names[feature], model.coef_[feature]))
+
+    print('\nPerforming linear regression assumption testing')
+    
+    # Creating predictions and calculating residuals for assumption tests
+    predictions = model.predict(features)
+    df_results = pd.DataFrame({'Actual': label, 'Predicted': predictions})
+    df_results['Residuals'] = abs(df_results['Actual']) - abs(df_results['Predicted'])
+
+    
+    def linear_assumption():
+        """
+        Linearity: Assumes there is a linear relationship between the predictors and
+                   the response variable. If not, either a polynomial term or another
+                   algorithm should be used.
+        """
+        print('\n=======================================================================================')
+        print('Assumption 1: Linear Relationship between the Target and the Features')
+        
+        print('Checking with a scatter plot of actual vs. predicted. Predictions should follow the diagonal line.')
+        
+        # Plotting the actual vs predicted values
+        sns.lmplot(x='Actual', y='Predicted', data=df_results, fit_reg=False, height=7)
+        
+        # Plotting the diagonal line
+        line_coords = np.linspace(df_results.min().min(), df_results.max().max(),100)
+        plt.plot(line_coords, line_coords,  # X and y points
+                 color='darkorange', linestyle='--')
+        plt.title('Actual vs. Predicted')
+        plt.show()
+        print('If non-linearity is apparent, consider adding a polynomial term')
+        
+
+
+        
+    def normal_errors_assumption(p_value_thresh=0.05):
+        """
+        Normality: Assumes that the error terms are normally distributed. If they are not,
+        nonlinear transformations of variables may solve this.
+               
+        This assumption being violated primarily causes issues with the confidence intervals
+        """
+        from statsmodels.stats.diagnostic import normal_ad
+        print('\n=======================================================================================')
+        print('Assumption 2: The error terms are normally distributed')
+        print()
+    
+        print('Using the Anderson-Darling test for normal distribution')
+
+        # Performing the test on the residuals
+        p_value = normal_ad(df_results['Residuals'])[1]
+        print('p-value from the test - below 0.05 generally means non-normal:', p_value)
+    
+        # Reporting the normality of the residuals
+        if p_value < p_value_thresh:
+            print('Residuals are not normally distributed')
+        else:
+            print('Residuals are normally distributed')
+    
+        # Plotting the residuals distribution
+        plt.subplots(figsize=(12, 6))
+        plt.title('Distribution of Residuals')
+        sns.distplot(df_results['Residuals'])
+        plt.show()
+    
+        print()
+        if p_value > p_value_thresh:
+            print('Assumption satisfied')
+        else:
+            print('Assumption not satisfied')
+            print()
+            print('Confidence intervals will likely be affected')
+            print('Try performing nonlinear transformations on variables')
+        
+        
+    def multicollinearity_assumption():
+        """
+        Multicollinearity: Assumes that predictors are not correlated with each other. If there is
+                           correlation among the predictors, then either remove prepdictors with high
+                           Variance Inflation Factor (VIF) values or perform dimensionality reduction
+                           
+                           This assumption being violated causes issues with interpretability of the 
+                           coefficients and the standard errors of the coefficients.
+        """
+        from statsmodels.stats.outliers_influence import variance_inflation_factor
+        print('\n=======================================================================================')
+        print('Assumption 3: Little to no multicollinearity among predictors')
+        
+        # Plotting the heatmap
+        plt.figure(figsize = (10,8))
+        sns.heatmap(pd.DataFrame(features, columns=feature_names).corr(), annot=True)
+        plt.title('Correlation of Variables')
+        plt.show()
+        
+        print('Variance Inflation Factors (VIF)')
+        print('> 10: An indication that multicollinearity may be present')
+        print('> 100: Certain multicollinearity among the variables')
+        print('-------------------------------------')
+       
+        # Gathering the VIF for each variable
+        VIF = [variance_inflation_factor(features, i) for i in range(features.shape[1])]
+        for idx, vif in enumerate(VIF):
+            print('{0}: {1}'.format(feature_names[idx], vif))
+        
+        # Gathering and printing total cases of possible or definite multicollinearity
+        possible_multicollinearity = sum([1 for vif in VIF if vif > 10])
+        definite_multicollinearity = sum([1 for vif in VIF if vif > 100])
+        print()
+        print('{0} cases of possible multicollinearity'.format(possible_multicollinearity))
+        print('{0} cases of definite multicollinearity'.format(definite_multicollinearity))
+        print()
+
+        if definite_multicollinearity == 0:
+            if possible_multicollinearity == 0:
+                print('Assumption satisfied')
+            else:
+                print('Assumption possibly satisfied')
+                print()
+                print('Coefficient interpretability may be problematic')
+                print('Consider removing variables with a high Variance Inflation Factor (VIF)')
+        else:
+            print('Assumption not satisfied')
+            print()
+            print('Coefficient interpretability will be problematic')
+            print('Consider removing variables with a high Variance Inflation Factor (VIF)')
+        
+        
+    def autocorrelation_assumption():
+        """
+        Autocorrelation: Assumes that there is no autocorrelation in the residuals. If there is
+                         autocorrelation, then there is a pattern that is not explained due to
+                         the current value being dependent on the previous value.
+                         This may be resolved by adding a lag variable of either the dependent
+                         variable or some of the predictors.
+        """
+        from statsmodels.stats.stattools import durbin_watson
+        print('\n=======================================================================================')
+        print('Assumption 4: No Autocorrelation')
+        print('\nPerforming Durbin-Watson Test')
+        print('Values of 1.5 < d < 2.5 generally show that there is no autocorrelation in the data')
+        print('0 to 2< is positive autocorrelation')
+        print('>2 to 4 is negative autocorrelation')
+        print('-------------------------------------')
+        durbinWatson = durbin_watson(df_results['Residuals'])
+        print('Durbin-Watson:', durbinWatson)
+        if durbinWatson < 1.5:
+            print('Signs of positive autocorrelation', '\n')
+            print('Assumption not satisfied', '\n')
+            print('Consider adding lag variables')
+        elif durbinWatson > 2.5:
+            print('Signs of negative autocorrelation', '\n')
+            print('Assumption not satisfied', '\n')
+            print('Consider adding lag variables')
+        else:
+            print('Little to no autocorrelation', '\n')
+            print('Assumption satisfied')
+
+            
+    def homoscedasticity_assumption():
+        """
+        Homoscedasticity: Assumes that the errors exhibit constant variance
+        """
+        print('\n=======================================================================================')
+        print('Assumption 5: Homoscedasticity of Error Terms')
+        print('Residuals should have relative constant variance')
+        
+        # Plotting the residuals
+        plt.subplots(figsize=(12, 6))
+        ax = plt.subplot(111)  # To remove spines
+        plt.scatter(x=df_results.index, y=df_results.Residuals, alpha=0.5)
+        plt.plot(np.repeat(0, df_results.index.max()), color='darkorange', linestyle='--')
+        ax.spines['right'].set_visible(False)  # Removing the right spine
+        ax.spines['top'].set_visible(False)  # Removing the top spine
+        plt.title('Residuals')
+        plt.show() 
+        print('If heteroscedasticity is apparent, confidence intervals and predictions will be affected')
+    linear_assumption()
+    normal_errors_assumption()
+    multicollinearity_assumption()
+    autocorrelation_assumption()
+    homoscedasticity_assumption()
+#%%        
+
+#\"""matching total feeding time with slurry density if  flow is almost constant"""
+#fed_in=[]
+#T_alim=[]
+#density=[]
+#fed_fin=[]
+#t_s,t_e=select_cycle2_time(dfSlow,'analogSlow21')
+#indices_slow=select_cycles_indices_by_time(dfSlow,t_s,t_e)
+#indices_fast=select_cycles_indices_by_time(dfFast,t_s,t_e)
+#indices_slow=indices_slow[1:]
+#indices_fast=indices_fast[1:]
+#for index in indices_slow:
+#    a=np.max(np.array(dfSlow['analogSlow19'])[index[0]:index[1]])
+#    fed_in.append(a)
+#for index in indices_fast:
+#    a= final_feeding_delivery_on_pressure(dfFast,index,14)
+#    fed_fin.append(a)  
+##    c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
+##    density.append(c)
+#for i in range(0,len(indices_slow)):
+#    if (fed_in[i]>200. and fed_in[i]<260. and fed_fin[i]>0. and fed_fin[i]<10.):
+#        b=np.max(np.array(dfSlow['analogSlow21'])[indices_slow[i][0]:indices_slow[i][1]])
+#        c=np.max(np.array(dfSlow['analogSlow20'])[indices_slow[i][0]:indices_slow[i][1]])
+#        T_alim.append(b)
+#        density.append(c)
+#plt.scatter(T_alim,density)
+#%%
+#
+#import scipy
+#lin_reg=scipy.stats.linregress(T_alim,density)
+#xn=np.linspace(min(T_alim),max(T_alim),200)
+#yn = lin_reg.intercept+lin_reg.slope*xn
+#
+#plt.plot(T_alim,density, 'or')
+#plt.plot(xn,yn)
+#plt.plot(xn,yn+lin_reg.stderr)
+#plt.plot(xn,yn-lin_reg.stderr)
+#plt.show()
+
+#%%
+
+#"""we want to compare some measure of different cycle
+#this function, giving the array of values, theindices of the cycles and the measure we want, give a statistic about the cycles
+#"""
+#
+#def cycle_stat_measure(arr, indices,statistic,statistic_libr):
+#    """indices should be a matrix Nx2 or a array of array 2x1"""
+#    vals=[]
+#    module = __import__(statistic_libr)
+#    method_to_call = getattr(module, statistic)
+#    for index in indices:
+#        vals.append(method_to_call(arr[index[0]:index[1]]))
+#    return vals
+#
+#def boxplot(arr, indices):
+#    plt.figure()
+#    data=[]
+#    for index in indices:
+#        data.append(arr[index[0]:index[1]])
+#    plt.boxplot(data)
+
+
+#%%
 
 #%%
 def plot_with_same_sampling(df,namevars,path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
@@ -535,13 +844,36 @@ def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
 
 
 #%%
-"""pypeline for some analysis"""
-df_fast1=add_time_as_number(df_fast)
-df_slow1=add_time_as_number(df_slow)
-df_fast_2_9=df_fast1[5342:19096]
-df_slow_2_9=df_slow1[859:2059]
+df_analog1_3=pd.DataFrame()
+for file in phase2:
+    df,df_phase=df_from_phase_bson(file,path1)
+    df=add_time_as_timeseries(df,'timestamp')
+    df=df[['timeserie','Analogs.analog1','Analogs.analog3']]
+    df_analog1_3=pd.concat([df_analog1_3,df],axis=0)
+for file in phase3:
+    df,df_phase=df_from_phase_bson(file,path1)
+    df=add_time_as_timeseries(df,'timestamp')
+    df=df[['timeserie','Analogs.analog1','Analogs.analog3']]
+    df_analog1_3=pd.concat([df_analog1_3,df],axis=0)
 
-"""for function as density_volume
-of volume_from_flow, we should pass an array, not a db series""" 
+df_analog1_3= df_analog1_3.set_index('timeserie')   
+df_analog1_3= df_analog1_3.sort_index()
 
+#%%
+from statsmodels.tsa.seasonal import seasonal_decompose
+from dateutil.parser import parse
+
+# Import Data
+df=df_analog1_3
+# Multiplicative Decomposition 
+#result_mul = seasonal_decompose(df['Analogs.analog1'], model='multiplicative', extrapolate_trend='freq')
+
+# Additive Decomposition
+result_add = seasonal_decompose(df['Analogs.analog1'], model='additive', )
+
+# Plot
+plt.rcParams.update({'figure.figsize': (10,10)})
+#result_mul.plot().suptitle('Multiplicative Decompose', fontsize=22)
+result_add.plot().suptitle('Additive Decompose', fontsize=22)
+plt.show()
 
