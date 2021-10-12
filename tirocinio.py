@@ -129,7 +129,56 @@ def max_of_phase(files, path,variables):
         x1[j,:]=x[i,:]
         j=j+1
     return x1,time
+#%%
+"""calculate the parameters of a inear regression of time/volume over volume
+   in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true"""
+   
+def time_volume_over_volume(filenames, path,figure=False):
+    pressure='Analogs.analog3'
+    slopes=[]
+    intercepts=[]
+    err=[]
+    r_values=[]
+    time=[]
+    mean_pressure=[]
+    st_err_pressure=[]
+    i=0
+    for file in filenames:
+        i=i+1
+        df,df_phase=df_from_phase_bson(file, path)
+        df=add_time_as_number(df,'timestamp')
+        limit=max(np.array(df_phase['PhaseVars.phaseVariable4']))-1 #limit over which the pressure remain constant
+        res = next(x for x, val in enumerate(df[pressure]) if val > limit)
+        res2 = next(x for x, val in enumerate(df[pressure][res:]) if val <limit-2 ) #when pressure drops in the last seconds it cannot be more considered constant
+        mean_pressure.append(np.mean(df[pressure][res:res2]))
+        st_err_pressure.append(np.std(df[pressure][res:res2]))
+        #the volume is the cumulative volume, so i cannot ignore the volume already present in the filter
+        volume=volume_from_flow(np.array(df['Analogs.analog1']),np.array(df['Time number']))+df_phase['PhaseVars.phaseVariable4'][0]
+        #calculate T over V in the region of costant pressure 
+        t_V=(df['Time number'][res:res2]-df['Time number'][res])/volume[res:res2]
+        #claculate the 
+        slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[res:res2],t_V)
+        if figure:
+            plt.figure()
+            plt.scatter(volume[res:res2],t_V,marker='.',c=df['Time number'][res:res2])
+            plt.colorbar()
+            plt.title('t/V - V --- colormaps of time(s)' )
+            print('r_value = ',r_value)
+            x=np.linspace(min(volume[res:res2]),max(volume[res:res2]),100)
+            plt.plot(x,intercept+slope*x,linestyle='--')
+            plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/figure/figure_"+str(i)+".png")
+            plt.close()
 
+            
+        slopes.append(slope)
+        intercepts.append(intercept)
+        err.append(std_err)
+        r_values.append(r_value)
+        time.append(timefromiso(df['timestamp'][res]))
+    return slopes,intercepts,err,r_values,time
+
+
+#%%
 def volume_density_bson(files,path):
     volume=[]
     density=[]
@@ -238,6 +287,12 @@ def multiple_linear_regression(x,y):
     return LR
 
 #%%
+def poly_fit(x,y,deg1=10):
+    z=np.polyfit(x, y,deg1)
+    p=np.poly1d(z)
+    xp = np.linspace(min(x),max(x) , len(y))
+    _ = plt.plot(x, y, '.', xp, p(xp), '-')
+
     
 """fitting values of a curve as a*e^(-b*x^c)+d""" 
 def neg_exp(x,a,b,c,d):
@@ -271,18 +326,17 @@ def fitting_values_feeding_law(filenames,path,figure=False):
 #%%
 """analysis of feeding and pressure in a single phase""" 
 
-def feeding_pressure_in_a_phase(phase_file,path,deg1,deg2):
-#    poly2=[]
-#    poly4=[]
-    for file in phase_file:
-        df,df_phase=df_from_phase_bson(file,path)
-        plt.figure()
-        df.dropna(subset = ["Analogs.analog1","Analogs.analog3"], inplace=True)       
-        poly_fit(df["Analogs.analog1"],df["Analogs.analog3"],deg1,deg2)
-
+def feeding_volume_in_a_phase(phase_file,path):
+    df,df_phase=df_from_phase_bson(phase_file,path)
+    df=add_time_as_number(df[['timestamp','Analogs.analog1']],'timestamp')
+    volume=volume_from_flow(df['Analogs.analog1'],df['Time number'])
+    plt.figure()
+    plt.scatter(volume[20:-5],1/df['Analogs.analog1'][20:-5])
+    
     
 #%%    
 """little pipeline"""
+"""
 df2,df_p_var2=df_from_phase_bson(phase2[12],path1)
 df3,df_p_var3=df_from_phase_bson(phase3[12],path1)
 for index1 in df2.columns:
@@ -290,7 +344,7 @@ for index1 in df2.columns:
     if (index1 not in analog_not_measured and index2 not in analog_not_measured and index1!='timestamp' and index2!='timestamp'):
         plt.figure()
         plt.scatter(df2[index1],df2[index2],marker='.')
-        plt.title(index1+'-'+index2)
+        plt.title(index1+'-'+index2)"""
 #%%
     
 """TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
@@ -309,7 +363,7 @@ def timefromiso(dataiso):
 
 #trasforma orario formato hh,mm,ss,micros in secondi 
 def time_to_num(t):
-    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24)
+    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24+(t.month-1)*60*60*24*30)
     
 #add to df a column of time in second
 """if time column is in iso format"""  
@@ -839,7 +893,7 @@ def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
                 
 
 
-
+"""
 
 
 
@@ -876,4 +930,4 @@ plt.rcParams.update({'figure.figsize': (10,10)})
 #result_mul.plot().suptitle('Multiplicative Decompose', fontsize=22)
 result_add.plot().suptitle('Additive Decompose', fontsize=22)
 plt.show()
-
+"""
