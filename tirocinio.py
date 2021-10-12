@@ -153,10 +153,10 @@ def time_volume_over_volume(filenames, path,figure=False):
         mean_pressure.append(np.mean(df[pressure][res:res2]))
         st_err_pressure.append(np.std(df[pressure][res:res2]))
         #the volume is the cumulative volume, so i cannot ignore the volume already present in the filter
-        volume=volume_from_flow(np.array(df['Analogs.analog1']),np.array(df['Time number']))+df_phase['PhaseVars.phaseVariable4'][0]
+        volume=volume_from_flow(np.array(df['Analogs.analog1']),np.array(df['Time number']))#+df_phase['PhaseVars.phaseVariable6'][0]
         #calculate T over V in the region of costant pressure 
         t_V=(df['Time number'][res:res2]-df['Time number'][res])/volume[res:res2]
-        #claculate the 
+        
         slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[res:res2],t_V)
         if figure:
             plt.figure()
@@ -166,8 +166,8 @@ def time_volume_over_volume(filenames, path,figure=False):
             print('r_value = ',r_value)
             x=np.linspace(min(volume[res:res2]),max(volume[res:res2]),100)
             plt.plot(x,intercept+slope*x,linestyle='--')
-            plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/figure/figure_"+str(i)+".png")
-            plt.close()
+#            plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/figure/figure_"+str(i)+".png")
+#            plt.close()
 
             
         slopes.append(slope)
