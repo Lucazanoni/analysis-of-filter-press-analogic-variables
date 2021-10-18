@@ -21,7 +21,9 @@ import seaborn as sns
 from statsmodels.graphics.tsaplots import plot_acf
 path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/bson"
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
+
 path2="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/power"
+path3="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/prova"
 
 #%%
 #read excel file
@@ -39,6 +41,29 @@ analog_not_measured=['Analogs.analog2','Analogs.analog4','Analogs.analog5','Anal
                      'Analogs.analog37','Analogs.analog38','Analogs.analog39','Analogs.analog40']
 
 analog_process=['Analogs.analog1','Analogs.analog3','Analogs.analog20','Analogs.analog29']
+#%%
+""" EXTRACT ZIP FILES
+    some bson files are inside zip files the contain a folder named output that contain the bson file"""
+def extract_bson_files_from_zip(zip_path,destination_path):
+    """getting all filename of zipfiles in the zip_path directory""" 
+    import zipfile
+    import shutil
+    files=[]
+    os.chdir(zip_path)
+    for file in glob.glob("*.zip"):
+        files.append(file)
+    """now, for ech zipname, i have to:
+        -unzip the folder in a directory
+        -copy the bson file of the folder in the destination_path directory
+        -eliminate the folder
+        """
+    for file in files:
+        with zipfile.ZipFile(file,"r") as zip_ref:
+            zip_ref.extractall(destination_path)
+#            os.chdir(path3+'/output')
+#            name = os.listdir(path)[0]
+#            shutil.copy(path3+'/'+name,destination_path+'/'+name)
+#            shutil.rmtree(path3+'/output')
 #%%
 """READING AND OPENING FILES JSON AND BSON"""
 
@@ -70,9 +95,7 @@ def make_bson_list_for_phase(path,numbers_of_phases):
     for i in numbers_of_phases:
         names=[]
         for file in files:
-            if file[12:18]==('phase'+str(i)):
-                names.append(file)
-            if file[13:19]==('phase'+str(i)):
+            if ('phase'+str(i)) in file:
                 names.append(file)
         globals()['phase'+str(i)]=names
     """generate a dataframe pandas from bson file"""    
@@ -103,7 +126,7 @@ def cycle_list_file(n_cycle,path):
     for file in files:
         if file[9:11]==str(n_cycle):
             names.append(file)
-            
+#%%            
     return names
 """take the max of a certain phase of each cycle foreach of the variable of interest"""
 def max_of_phase(files, path,variables):
@@ -131,7 +154,8 @@ def max_of_phase(files, path,variables):
     return x1,time
 #%%
 """calculate the parameters of a inear regression of time/volume over volume
-   in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true"""
+   in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true
+   if there is a change in the slope i find the changing point for each cycle"""
    
 def time_volume_over_volume(filenames, path,figure=False):
     pressure='Analogs.analog3'
@@ -139,10 +163,10 @@ def time_volume_over_volume(filenames, path,figure=False):
     intercepts=[]
     err=[]
     r_values=[]
-    time=[]
-    mean_pressure=[]
-    st_err_pressure=[]
+    times=[]
+    indices=[]
     i=0
+    liquid_concentration=[]
     for file in filenames:
         i=i+1
         df,df_phase=df_from_phase_bson(file, path)
@@ -150,34 +174,202 @@ def time_volume_over_volume(filenames, path,figure=False):
         limit=max(np.array(df_phase['PhaseVars.phaseVariable4']))-1 #limit over which the pressure remain constant
         res = next(x for x, val in enumerate(df[pressure]) if val > limit)
         res2 = next(x for x, val in enumerate(df[pressure][res:]) if val <limit-2 ) #when pressure drops in the last seconds it cannot be more considered constant
-        mean_pressure.append(np.mean(df[pressure][res:res2]))
-        st_err_pressure.append(np.std(df[pressure][res:res2]))
-        #the volume is the cumulative volume, so i cannot ignore the volume already present in the filter
-        volume=volume_from_flow(np.array(df['Analogs.analog1']),np.array(df['Time number']))#+df_phase['PhaseVars.phaseVariable6'][0]
+        volume=volume_from_flow(np.array(df['Analogs.analog1'])[res:res2],np.array(df['Time number'])[res:res2])
+        time=np.array(df['Time number'])[res:res2]-df['Time number'][res]
         #calculate T over V in the region of costant pressure 
-        t_V=(df['Time number'][res:res2]-df['Time number'][res])/volume[res:res2]
-        
-        slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[res:res2],t_V)
+        t_V=(df['Time number'][res:res2]-df['Time number'][res])/volume
+        slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[1:],t_V[1:])
+        index=t_V_over_V_slopes(time,volume)   #find the index in which the curve is not linear anymore, if exist   
+        indices.append(index)
+        liquid_concentration.append(final_residual_liquid_concentration(np.array(df_phase['PhaseVars.phaseVariable6'])[-1],
+                                                                        np.mean(np.array(df_phase['PhaseVars.phaseVariable9']))))
         if figure:
-            plt.figure()
-            plt.scatter(volume[res:res2],t_V,marker='.',c=df['Time number'][res:res2])
-            plt.colorbar()
-            plt.title('t/V - V --- colormaps of time(s)' )
-            print('r_value = ',r_value)
-            x=np.linspace(min(volume[res:res2]),max(volume[res:res2]),100)
-            plt.plot(x,intercept+slope*x,linestyle='--')
-#            plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/figure/figure_"+str(i)+".png")
-#            plt.close()
+            if index!=0:
+                plt.figure()
+                plt.scatter(volume[:index],t_V[:index],marker='.')#c=df['Time number'][res:res+i])
+                slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[1:index],t_V[1:index])
+                x=np.linspace(min(volume[:index]),max(volume[:index]),100)
+                plt.plot(x,intercept+slope*x,linestyle='--',color='red')
+                plt.scatter(volume[index:],t_V[index:],marker='.')#c=df['Time number'][res+i:res2])
+#                slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[index:],t_V[index:])
+#                x=np.linspace(volume[index],volume[-1],100)
+#                plt.plot(x,intercept+slope*x,linestyle='--',color='green')
+                
+                
+            else:
+                plt.figure()
+                plt.scatter(volume,t_V,marker='.',c=df['Time number'][res:res2])
+                x=np.linspace(min(volume),max(volume),100)
+                plt.plot(x,intercept+slope*x,linestyle='--')
+            #plt.colorbar()
+            plt.title('final liquid concentration='+ str(liquid_concentration[-1]))
+            
+            #print('r_value = ',r_value)
+#            x=np.linspace(min(volume),max(volume),100)
+#            plt.plot(x,intercept+slope*x,linestyle='--')
+            plt.xlabel('V   m3')
+            plt.ylabel('t/V     s m^(-3)')
+            plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/umidità residua/figure_"+str(i)+".png")
+            plt.close()
 
             
         slopes.append(slope)
         intercepts.append(intercept)
         err.append(std_err)
         r_values.append(r_value)
-        time.append(timefromiso(df['timestamp'][res]))
-    return slopes,intercepts,err,r_values,time
+        times.append(timefromiso(df['timestamp'][res]))
+        #date.append(df['timestamp'][res])
+    return slopes,intercepts,err,r_values,times,indices,liquid_concentration
 
 
+
+
+
+#%%
+    
+"""this function find if there is a changing in the slope of time/volume over volume plot, that should be linear
+   when it's not linear and there is a changing in the slope, i separe the 2 parts of the curve in the linear an the second part
+   i assume that the initial part is linear and then calculate when the slopes diverge fron the initial one"""
+    
+
+def t_V_over_V_slopes(time,volume):
+    t_v=np.array(time/volume)[1:]
+    volume=volume[1:]
+    start_slope=sp.stats.linregress(volume[100:200],t_v[100:200])[0] #i calculate the starting slope of the curve assuming is linear  
+    for i in range(200,len(t_v)-20):
+        slope=sp.stats.linregress(volume[i:i+20],t_v[i:i+20])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
+        if slope/start_slope>2:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
+            print("the changing of slope occours in position",i)
+            return i
+    print("no change of slope")
+    return 0
+#%%
+def residual_liquid_concentration_over_time(flow,time,slurry_density,liquid_density=1.,final_volume=10.8768):
+    solid_density=2.65746
+    pumped_volume=np.array(volume_from_flow(flow,time))
+    solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
+    num=(1-solid_concentration)*(pumped_volume*slurry_density)-(pumped_volume-final_volume)*liquid_density
+    den=(pumped_volume*slurry_density-liquid_density*(pumped_volume-final_volume))
+    liquid_concentration= num/den
+    index=next(x for x, val in enumerate(pumped_volume) if val > final_volume)
+    plt.scatter(time[index+1:],liquid_concentration[index+1:],marker='.')
+    return liquid_concentration
+
+
+
+   
+def final_residual_liquid_concentration(pumped_volume,slurry_density,liquid_density=1.,final_volume=10.8768):
+    solid_density=2.65746
+    solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
+    return (((1-solid_concentration)*pumped_volume*slurry_density-(pumped_volume-final_volume)*liquid_density)/(pumped_volume*slurry_density
+           -liquid_density*(pumped_volume-final_volume)))
+
+def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volume=10.8768):
+    solid_density=2.65746
+    solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
+    pumped_volume=volume_from_flow(flow,time)
+    final_volume=10.8768
+    cake_density=np.array(pumped_volume)*solid_concentration*slurry_density/final_volume
+    return cake_density
+#%%
+
+def all_final_liquid_concentration(filenames,path):
+    liquid_concentrations=[]
+    for file in filenames:
+        df,df_phase=df_from_phase_bson(file,path)
+        liquid_concentrations.append(final_residual_liquid_concentration(np.array(df_phase['PhaseVars.phaseVariable6'])[-1],
+                                                                        np.mean(np.array(df_phase['PhaseVars.phaseVariable9']))))
+    return liquid_concentrations
+    #%%
+
+def residual_liquid_over_time():
+    final_liquid_concentration=[]
+    for i in range(len(phase3)):
+        df2,df_phase2=df_from_phase_bson(phase2[i],path1)
+        df3,df_phase3=df_from_phase_bson(phase3[i],path1)
+        flow=np.zeros(len(df2)+len(df3))
+        time=np.zeros(len(df2)+len(df3))
+        df2=add_time_as_number(df2,'timestamp')
+        df3=add_time_as_number(df3,'timestamp')
+        t2_3=time_to_num(timefromiso(np.array(df3['timestamp'])[0]))-time_to_num(timefromiso(np.array(df2['timestamp'])[-1]))
+        flow[:len(df2)]=np.array(df2['Analogs.analog1'])
+        flow[len(df2):]=np.array(df3['Analogs.analog1'])
+        time[:len(df2)]=np.array(df2['Time number'])
+        time[len(df2):]=np.array(df3['Time number'])+np.array(df2['Time number'])[-1]+t2_3
+        plt.figure()
+        residual_liquid_concentration_over_time(flow,time,df_phase3['PhaseVars.phaseVariable9'][0])
+        
+    return final_liquid_concentration
+
+
+
+#%%
+def end_cycle(file,path,time=None):
+    df,df_phase=df_from_phase_bson(file,path)
+    if time==None:
+        time=300
+        
+    df=add_time_as_number(df,'timestamp')
+    end_index = next(x for x, val in enumerate(np.array(df['Analogs.analog3'])[int(len(df['Time number'])/2):]) if val <10 )
+    t_start=df['Time number'][end_index]-time
+    start_index = next(x for x, val in enumerate(np.array(df['Time number']))
+                                  if val > t_start)
+    volume=volume_from_flow(np.array(df['Analogs.analog1'])[start_index:end_index],np.array(df['Time number'])[start_index:end_index])[-1]
+    tot_time=df['Time number'][end_index]-df['Time number'][start_index]
+    date=timefromiso(df['timestamp'][0])
+    #mean_flow=volume/tot_time
+    return volume,date
+    
+        
+def plot_end_cycles(filenames,path,endtime=None):
+    dates=[]
+    volumes=[]
+    #mean_flows=[]
+    for file in filenames:
+        v,d=end_cycle(file,path,time=endtime)
+        dates.append(d)
+        volumes.append(v)
+#        mean_flows.append(mf)
+    sorted_index = np.argsort(dates)
+    volumes = [volumes[i] for i in sorted_index]
+    #mean_flows = [mean_flows[i] for i in sorted_index]
+    dates = [dates[i] for i in sorted_index]
+    plt.figure()
+    plt.plot_date(dates,volumes)
+    return volumes,dates
+#    plt.figure()
+#    plt.plot_date(dates,mean_flows)
+    
+#%%
+#i=0
+#for file in phase3:
+#    df,df_phase=df_from_phase_bson(file, path1)
+#    x=np.zeros([62,5])
+#    x[i,0]=max(np.array(df_phase['PhaseVars.phaseVariable1']))
+#    x[i,1]=max(np.array(df_phase['PhaseVars.phaseVariable2']))
+#    x[i,2]=max(np.array(df_phase['PhaseVars.phaseVariable4']))
+#    x[i,3]=max(np.array(df_phase['PhaseVars.phaseVariable6']))
+#    x[i,4]=max(np.array(df_phase['PhaseVars.phaseVariable9']))
+#from sklearn.cluster import AffinityPropagation
+#clustering = AffinityPropagation().fit(x)
+#clustering.labels_
+#    
+#%%
+#from kneed import KneeLocator
+#press_slope=[]
+#for file in phase3:
+#    df,df_phase=df_from_phase_bson(file, path1)
+#    df=add_time_as_number(df,'timestamp')
+#    kn = kneed.KneeLocator(df['Time number'],df['Analogs.analog3'], curve='concave', direction='increasing')
+#    ind = (np.abs(df1['Time number'] - kn.knee)).argmin()
+#    press_slope.append(sp.stats.linregress(df['Time number'],df['Analogs.analog3'])[0])
+#press_slope1=[]
+#press_slope2=[]
+#for i in idx:
+#    press_slope1.append(press_slope[i])
+#for i in idx1:
+#    press_slope2.append(press_slope[i])
+   
 #%%
 def volume_density_bson(files,path):
     volume=[]
