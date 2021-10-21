@@ -21,7 +21,7 @@ import seaborn as sns
 from statsmodels.graphics.tsaplots import plot_acf
 path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/bson"
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro"
-
+pathprova="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/immagini_prova"
 path2="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/power"
 path3="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/prova"
 
@@ -83,6 +83,7 @@ def json_file_to_df(filenames, path):
         #file1=file1.replace("(","_")
         #file1=file1.replace(")","")
         globals()[file]=pd.read_json(file)
+        
 def read_json_files(name,path):
     with open(name) as json_file:
         return json.load(json_file)
@@ -129,8 +130,63 @@ def cycle_list_file(n_cycle,path):
     for file in files:
         if file[9:11]==str(n_cycle):
             names.append(file)
+    return names       
 #%%            
-    return names
+            
+"""TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
+#take data from iso data
+def take_datetime(df,timename='_time'):
+    dates=[]
+    for date in df[timename]:
+        date=dateutil.parser.isoparse(date[:-1])
+        dates.append(date)
+    date=pd.DataFrame({'time':dates})
+    return date
+
+#take time from iso 8601 data
+def timefromiso(dataiso):
+    return datetime.datetime.fromisoformat(dataiso[:-1])
+
+#trasforma orario formato hh,mm,ss,micros in secondi 
+def time_to_num(t):
+    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24+(t.month-1)*60*60*24*30)
+    
+#add to df a column of time in second
+"""if time column is in iso format"""  
+def add_time_as_number(df,timename='_time'):
+    if not(timename in df.columns):
+        raise TypeError(timename+' do not exist in the dataframe')
+    timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
+    return(pd.concat([df,timenumberdf],axis=1))
+    
+"""if time column is in datetime format"""    
+def add_time_as_number2(df,timename='_time'):
+    timenum=[]
+    t0=df[timename].iloc[0]
+    t0=time_to_num(t0)
+    for time in df[timename]:
+        timenum.append(time_to_num(time)-t0)
+    timenumberdf=pd.DataFrame({"Time number":timenum})
+    return pd.concat([df,timenumberdf],axis=1)
+
+def numbers_from_time(df,timename='_time'):
+    timenum=[]
+    if not(timename in df.columns):
+        raise TypeError(timename+' do not exist in the dataframe')
+    
+    t0=time_to_num(timefromiso(df[timename][0]))
+    for time in df[timename]:
+        t=timefromiso(time)
+        timenum.append(time_to_num(t)-t0)
+    return (np.array(timenum))
+
+def add_time_as_timeseries(df,timename='timestamp'):
+    timeserie=[]
+    for time in df[timename]:
+        timeserie.append(datetime.datetime.fromisoformat(time[:-1]))
+    timeserie=pd.DataFrame({'timeserie':timeserie})
+    return pd.concat([df,timeserie],axis=1)
+#%%            
 """take the max of a certain phase of each cycle foreach of the variable of interest"""
 def max_of_phase(files, path,variables):
     x=np.zeros([len(files),len(variables)])
@@ -155,6 +211,72 @@ def max_of_phase(files, path,variables):
         x1[j,:]=x[i,:]
         j=j+1
     return x1,time
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#%%
+    
+"""this function find if there is a changing in the slope of time/volume over volume plot, that should be linear
+   when it's not linear and there is a changing in the slope, i separe the 2 parts of the curve in the linear an the second part
+   i assume that the initial part is linear and then calculate when the slopes diverge fron the initial one"""
+    
+
+def t_V_over_V_slopes(time,volume):
+    t_v=np.array(time/volume)[1:]
+    volume=volume[1:]
+    start_slope=sp.stats.linregress(volume[:100],t_v[:100])[0] #i calculate the starting slope of the curve assuming is linear  
+    for i in range(100,len(t_v)-20):
+        slope=sp.stats.linregress(volume[i:i+20],t_v[i:i+20])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
+        if slope/start_slope>2:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
+            #print("the changing of slope occours in position",i)
+            return i
+    #print("no change of slope")
+    return 0
+
+#%%
+"""i want that the derivate is null for a while, so i check if the next n=20 points have derivate very little (<0.01)"""
+def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
+
+    derivate=np.gradient(pressure,time)
+    counter=False
+    for i in range(len(pressure)-n_limit):
+        if (abs(derivate[i])<0.01 and abs(max(pressure)-pressure[i])<p_range):
+            counter=True
+            for j in range(i,i+n_limit):
+                if abs(derivate[j])>0.01 and abs(max(pressure)-pressure[i])<p_range:
+                    counter=False
+            if counter:
+                if figure:
+                    plt.figure()
+                    plt.scatter(time,pressure,marker='.')
+                    plt.scatter(time[i],pressure[i],color='red')
+                    from datetime import datetime
+                    n= datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+                    plt.savefig(pathprova+'/'+n+'.png')
+                    plt.close()
+                return i
+    print("pressure not constant")
+    return 0
 #%%
 """calculate the parameters of a inear regression of time/volume over volume
    in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true
@@ -175,9 +297,15 @@ def time_volume_over_volume(filenames, path,figure=False,savefig=False):
         i=i+1
         df,df_phase=df_from_phase_bson(file, path)
         df=add_time_as_number(df,'timestamp')
-        limit=max(np.array(df_phase['PhaseVars.phaseVariable4']))-1 #limit over which the pressure remain constant
-        res = next(x for x, val in enumerate(df[pressure]) if val > limit)
-        res2 = next(x for x, val in enumerate(df[pressure][res:]) if val <limit-2 ) #when pressure drops in the last seconds it cannot be more considered constant
+        #limit=max(np.array(df['Analogs.analog3']))-.5 #limit over which the pressure remain constant
+        #res = next(x for x, val in enumerate(df[pressure]) if val > limit)
+        res=limit_pressure(df['Analogs.analog3'],df['Time number'],n_limit=30)
+        if res==0:
+            print(file+" don't have a sufficiently constant pressure" )
+            continue
+        
+        #res2 = next(x for x, val in enumerate(df[pressure][res:]) if val <limit-3 ) #when pressure drops in the last seconds it cannot be more considered constant
+        res2=-5
         volume=volume_from_flow(np.array(df['Analogs.analog1'])[res:res2],np.array(df['Time number'])[res:res2])
         time=np.array(df['Time number'])[res:res2]-df['Time number'][res]
         #calculate T over V in the region of costant pressure 
@@ -205,7 +333,7 @@ def time_volume_over_volume(filenames, path,figure=False,savefig=False):
                 x=np.linspace(min(volume),max(volume),100)
                 plt.plot(x,intercept+slope*x,linestyle='--')
             #plt.colorbar()
-            plt.title('final liquid concentration='+ str(liquid_concentration[-1]))
+            #plt.title('final liquid concentration='+ str(liquid_concentration[-1]))
             
             #print('r_value = ',r_value)
 #            x=np.linspace(min(volume),max(volume),100)
@@ -213,7 +341,7 @@ def time_volume_over_volume(filenames, path,figure=False,savefig=False):
             plt.xlabel('V   m3')
             plt.ylabel('t/V     s m^(-3)')
             if (savefig):
-                plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/umidità residua/figure_"+str(i)+".png")
+                plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/limit=2/figure_"+str(i)+".png")
                 plt.close()
 
             
@@ -251,24 +379,7 @@ def specific_cake_resistances(filenames,path,solid_density=2.65746,liquid_densit
     return alpha,alpha_err
 
 
-#%%
-    
-"""this function find if there is a changing in the slope of time/volume over volume plot, that should be linear
-   when it's not linear and there is a changing in the slope, i separe the 2 parts of the curve in the linear an the second part
-   i assume that the initial part is linear and then calculate when the slopes diverge fron the initial one"""
-    
 
-def t_V_over_V_slopes(time,volume):
-    t_v=np.array(time/volume)[1:]
-    volume=volume[1:]
-    start_slope=sp.stats.linregress(volume[100:200],t_v[100:200])[0] #i calculate the starting slope of the curve assuming is linear  
-    for i in range(200,len(t_v)-20):
-        slope=sp.stats.linregress(volume[i:i+20],t_v[i:i+20])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
-        if slope/start_slope>2:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
-            #print("the changing of slope occours in position",i)
-            return i
-    #print("no change of slope")
-    return 0
 #%%
     
 """here i calculate the residual humidity, that is the mass of H2O residual in the cake"""
@@ -374,7 +485,7 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
             time[i]=time_to_num(t)-t0
             i=i+1
         residual_humidity=residual_humidity_over_time(flow,time,phasedf3['PhaseVars.phaseVariable9'][0],figure=False)
-        limit=max(np.array(phasedf3['PhaseVars.phaseVariable4']))-1.   #limit after that i consider constant the pressure
+        limit=max(np.array(phasedf3['PhaseVars.phaseVariable4']))-.5   #limit after that i consider constant the pressure
         res = next(x for x, val in enumerate(df_phase3['Analogs.analog3']) if val > limit)
         
         #res2 = next(x for x, val in enumerate(df['Analogs.analog3'][res:]) if val <limit-2 )
@@ -383,7 +494,6 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
         vol=volume_from_flow(flow,time) 
         vol_index=next(x for x, val in enumerate(vol) if val > 10.8768)  #index which before the pumped volume is less than the filter volume
                                                                         # and so the formula is not valid
-#        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
 #        
         solid_concentration=2.65746*(1-phasedf3['PhaseVars.phaseVariable9'][0])/(phasedf3['PhaseVars.phaseVariable9'][0]*(1-2.65746))
         
@@ -393,46 +503,63 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
         """ slope of t_V over V in function of humidity"""
         #the first 200 points in the reagion of constant pressure are used to define the starting slope, 
         #we then compute the derivate for next slopes
-        starting_slope=sp.stats.linregress(volume[100:201],t_V[99:200])[0]
-        slopes=np.gradient(t_V[200:],volume[201:])
-        #here i plot the slopes and the humidity in the time in the same graph
-        """
-        fig,ax=plt.subplots()
-        ax2=ax.twinx()
-        ax.scatter(time[res+201:-5],slopes,marker='.')
-        ax.axhline(y=starting_slope)    
-        ax.axhline(y=2*starting_slope,linestyle='--')
-        ax2.scatter(time[res+200:-5],residual_humidity[res+200:-5],marker='.',color='red')
-        ax2.axhline(y=0.2,color='red',linestyle='-.')
-        """
-        #plt.scatter(np.log(slopes),(residual_humidity[res+201:-5]))
         
+        slopes=np.gradient(t_V,volume[1:])
+        date1=date[-1].strftime("%Y-%m-%d-%H-%M")
+       
+
+        plt.axhline(y=0.2,color='red',linestyle='-.')
+     
+        plt.scatter(slopes,(residual_humidity[res+1:-5]))
+        path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/umidità residua/umidità e t_v slope/umidità-pendenze"
+        from datetime import datetime
+        n=(datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f'))
+        plt.savefig(path+'/'+date1+'.png')
+        plt.close()
         
         """alpha and humidity"""
+        
         solid_concentration=2.65746*(1-phasedf3['PhaseVars.phaseVariable9'][0])/(phasedf3['PhaseVars.phaseVariable9'][0]*(1-2.65746))
         mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
         alpha=slopes*mean_pressure/solid_concentration
-        plt.scatter(alpha,(residual_humidity[res+201:-5]))
+        plt.scatter(alpha,(residual_humidity[res+101:-5]))
         plt.xlabel('alpha')
         plt.ylabel('residual humidity')
         date1=date[-1].strftime("%Y-%m-%d-%H-%M")
+       
         plt.savefig(fname=path+'/risultati/t_V over V/umidità residua/alpha_humidity/date '+date1+'.png')
         plt.close()
-        #here i plot humidity in function of the slope
-        #plt.figure()
-      
+
+        
         
         """plotting t_v over V and residual humidity over time"""
-        
+
         fig,ax=plt.subplots(2,1)
         fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
         ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
         #ax[0].axvline(x=date[vol_index])
         ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
-        fig.savefig(fname=path+'/risultati/t_V over V/umidità residua/umidità e t_v slope/date '+date1+'.png')
+        fig.savefig(fname=path+'/risultati/t_V over V/umidità residua/umidità e t_v slope/nel_tempo '+date1+'.png')
         plt.close()
-        #plt.colorbar()
 
+
+
+#%%
+def density_over_time(files2,files3,path):
+    densities=[]
+    times=[]
+    for i in range(len(files3)):
+        df2,df_p2=df_from_phase_bson(files2[i],path)
+        df3,df_p3=df_from_phase_bson(files3[i],path)
+        d=np.zeros(len(df2)+len(df3))
+        t=np.zeros(len(df2)+len(df3))
+        d[:len(df2)]=np.array(df2['Analogs.analog22'])
+        d[len(df2):]=np.array(df3['Analogs.analog22'])
+        t[:len(df2)]=add_time_as_number(df2,'timestamp')['Time number']
+        t[len(df2):]=add_time_as_number(df3,'timestamp')['Time number']+t[len(df2)-1]
+        densities.append(d)
+        times.append(t)
+    return densities,times
 #%%
 #def end_cycle(file,path,time=None):
 #    df,df_phase=df_from_phase_bson(file,path)
@@ -667,61 +794,7 @@ for index1 in df2.columns:
         plt.figure()
         plt.scatter(df2[index1],df2[index2],marker='.')
         plt.title(index1+'-'+index2)"""
-#%%
-    
-"""TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
-#take data from iso data
-def take_datetime(df,timename='_time'):
-    dates=[]
-    for date in df[timename]:
-        date=dateutil.parser.isoparse(date[:-1])
-        dates.append(date)
-    date=pd.DataFrame({'time':dates})
-    return date
 
-#take time from iso 8601 data
-def timefromiso(dataiso):
-    return datetime.datetime.fromisoformat(dataiso[:-1])
-
-#trasforma orario formato hh,mm,ss,micros in secondi 
-def time_to_num(t):
-    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24+(t.month-1)*60*60*24*30)
-    
-#add to df a column of time in second
-"""if time column is in iso format"""  
-def add_time_as_number(df,timename='_time'):
-    if not(timename in df.columns):
-        raise TypeError(timename+' do not exist in the dataframe')
-    timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
-    return(pd.concat([df,timenumberdf],axis=1))
-    
-"""if time column is in datetime format"""    
-def add_time_as_number2(df,timename='_time'):
-    timenum=[]
-    t0=df[timename].iloc[0]
-    t0=time_to_num(t0)
-    for time in df[timename]:
-        timenum.append(time_to_num(time)-t0)
-    timenumberdf=pd.DataFrame({"Time number":timenum})
-    return pd.concat([df,timenumberdf],axis=1)
-
-def numbers_from_time(df,timename='_time'):
-    timenum=[]
-    if not(timename in df.columns):
-        raise TypeError(timename+' do not exist in the dataframe')
-    
-    t0=time_to_num(timefromiso(df[timename][0]))
-    for time in df[timename]:
-        t=timefromiso(time)
-        timenum.append(time_to_num(t)-t0)
-    return (np.array(timenum))
-
-def add_time_as_timeseries(df,timename='timestamp'):
-    timeserie=[]
-    for time in df[timename]:
-        timeserie.append(datetime.datetime.fromisoformat(time[:-1]))
-    timeserie=pd.DataFrame({'timeserie':timeserie})
-    return pd.concat([df,timeserie],axis=1)
 #%%
 
 #mappo le due variabili, se una è il tempo solo variabile tempo, altrimenti faccio x-y, x-t e y-t
