@@ -20,7 +20,7 @@ from statsmodels.tsa.stattools import acf
 import seaborn as sns
 from statsmodels.graphics.tsaplots import plot_acf
 path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/bson"
-path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/MindsphereFleetManager"
+path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro"
 
 path2="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/power"
 path3="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/prova"
@@ -78,11 +78,14 @@ def read_json_names(path):
 def json_file_to_df(filenames, path):
     os.chdir(path)
     for file in filenames:
-        file1=file[33:-5]
-        file1=file1.replace(" ","")
-        file1=file1.replace("(","_")
-        file1=file1.replace(")","")
-        globals()[file1]=pd.read_json(file)
+        #file1=file[33:-5]
+        #file1=file1.replace(" ","")
+        #file1=file1.replace("(","_")
+        #file1=file1.replace(")","")
+        globals()[file]=pd.read_json(file)
+def read_json_files(name,path):
+    with open(name) as json_file:
+        return json.load(json_file)
 
 """create a variable for phase of interst with the name of all the file of that phase """
 """number of phases=array with the numbers of the phases of interest"""
@@ -157,7 +160,7 @@ def max_of_phase(files, path,variables):
    in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true
    if there is a change in the slope i find the changing point for each cycle"""
    
-def time_volume_over_volume(filenames, path,figure=False):
+def time_volume_over_volume(filenames, path,figure=False,savefig=False):
     pressure='Analogs.analog3'
     slopes=[]
     intercepts=[]
@@ -165,8 +168,9 @@ def time_volume_over_volume(filenames, path,figure=False):
     r_values=[]
     times=[]
     indices=[]
+    """index is where the curve is considered no more linear. if zero it is considered linear in all the region at constant pressure"""
     i=0
-    liquid_concentration=[]
+    """i is the number for the figure"""
     for file in filenames:
         i=i+1
         df,df_phase=df_from_phase_bson(file, path)
@@ -181,8 +185,7 @@ def time_volume_over_volume(filenames, path,figure=False):
         slope, intercept, r_value, p_value, std_err = sp.stats.linregress(volume[1:],t_V[1:])
         index=t_V_over_V_slopes(time,volume)   #find the index in which the curve is not linear anymore, if exist   
         indices.append(index)
-        liquid_concentration.append(final_residual_liquid_concentration(np.array(df_phase['PhaseVars.phaseVariable6'])[-1],
-                                                                        np.mean(np.array(df_phase['PhaseVars.phaseVariable9']))))
+        
         if figure:
             if index!=0:
                 plt.figure()
@@ -209,8 +212,9 @@ def time_volume_over_volume(filenames, path,figure=False):
 #            plt.plot(x,intercept+slope*x,linestyle='--')
             plt.xlabel('V   m3')
             plt.ylabel('t/V     s m^(-3)')
-            plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/umidità residua/figure_"+str(i)+".png")
-            plt.close()
+            if (savefig):
+                plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/umidità residua/figure_"+str(i)+".png")
+                plt.close()
 
             
         slopes.append(slope)
@@ -219,10 +223,32 @@ def time_volume_over_volume(filenames, path,figure=False):
         r_values.append(r_value)
         times.append(timefromiso(df['timestamp'][res]))
         #date.append(df['timestamp'][res])
-    return slopes,intercepts,err,r_values,times,indices,liquid_concentration
-
-
-
+    return slopes,intercepts,err,r_values,times,indices
+#%%
+def specific_cake_resistances(filenames,path,solid_density=2.65746,liquid_density=1.):
+    alpha=[] 
+    """the specific cake resistance per m2 when the pressure is almost constant"""
+    x=time_volume_over_volume(filenames,path)
+    err=x[2]
+    slopes=x[0]
+    rel_slope_err=np.array(err)/np.array(slopes) 
+    """relative error of slopes"""
+    solid_con=solid_concentrations( filenames,path)
+    mean_pressure=[]
+    err_pressure=[]
+    for file in filenames:        
+        df,df_phase=df_from_phase_bson(file,path)
+        limit=max(np.array(df_phase['PhaseVars.phaseVariable4']))-1
+        res = next(x for x, val in enumerate(df['Analogs.analog3']) if val > limit)
+        res2 = next(x for x, val in enumerate(df['Analogs.analog3'][res:]) if val <limit-2 )
+        mean_pressure.append(np.mean(np.array(df['Analogs.analog3'])[res:res2]))
+        err_pressure.append(np.std(np.array(df['Analogs.analog3'])[res:res2]))
+    rel_press_err=np.array(err_pressure)/np.array(mean_pressure) 
+    """relative error of pressure"""
+    rel_err=rel_slope_err+rel_press_err
+    alpha=np.array(slopes)*np.array(mean_pressure)/np.array(solid_con)
+    alpha_err=rel_err*alpha
+    return alpha,alpha_err
 
 
 #%%
@@ -239,12 +265,17 @@ def t_V_over_V_slopes(time,volume):
     for i in range(200,len(t_v)-20):
         slope=sp.stats.linregress(volume[i:i+20],t_v[i:i+20])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
         if slope/start_slope>2:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
-            print("the changing of slope occours in position",i)
+            #print("the changing of slope occours in position",i)
             return i
-    print("no change of slope")
+    #print("no change of slope")
     return 0
 #%%
-def residual_liquid_concentration_over_time(flow,time,slurry_density,liquid_density=1.,final_volume=10.8768):
+    
+"""here i calculate the residual humidity, that is the mass of H2O residual in the cake"""
+"""i have only solid density, slurry density, liquid density and slurry volume"""
+
+
+def residual_humidity_over_time(flow,time,slurry_density,figure=True,liquid_density=1.,final_volume=10.8768):
     solid_density=2.65746
     pumped_volume=np.array(volume_from_flow(flow,time))
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
@@ -252,18 +283,20 @@ def residual_liquid_concentration_over_time(flow,time,slurry_density,liquid_dens
     den=(pumped_volume*slurry_density-liquid_density*(pumped_volume-final_volume))
     liquid_concentration= num/den
     index=next(x for x, val in enumerate(pumped_volume) if val > final_volume)
-    plt.scatter(time[index+1:],liquid_concentration[index+1:],marker='.')
+    if figure:
+        plt.scatter(time[index+1:],liquid_concentration[index+1:],marker='.')
     return liquid_concentration
 
 
 
    
-def final_residual_liquid_concentration(pumped_volume,slurry_density,liquid_density=1.,final_volume=10.8768):
+def final_residual_humidity(pumped_volume,slurry_density,liquid_density=1.,final_volume=10.8768):
     solid_density=2.65746
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
     return (((1-solid_concentration)*pumped_volume*slurry_density-(pumped_volume-final_volume)*liquid_density)/(pumped_volume*slurry_density
            -liquid_density*(pumped_volume-final_volume)))
 
+"""density of the cake"""
 def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volume=10.8768):
     solid_density=2.65746
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
@@ -272,8 +305,17 @@ def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volu
     cake_density=np.array(pumped_volume)*solid_concentration*slurry_density/final_volume
     return cake_density
 #%%
+def solid_concentrations(filenames,path,solid_density=2.65746,liquid_density=1.):
+    solid_concentrations=[]
+    for file in filenames:
+        df,df_phase=df_from_phase_bson(file,path)
+        slurry_density=np.array(df_phase['PhaseVars.phaseVariable9'])[0]
+        solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
+        solid_concentrations.append(solid_concentration)
+    return solid_concentrations
+#%%
 
-def all_final_liquid_concentration(filenames,path):
+def all_final_humidity(filenames,path):
     liquid_concentrations=[]
     for file in filenames:
         df,df_phase=df_from_phase_bson(file,path)
@@ -282,63 +324,151 @@ def all_final_liquid_concentration(filenames,path):
     return liquid_concentrations
     #%%
 
-def residual_liquid_over_time():
+def all_residual_humidity_over_time(figure=True):
     final_liquid_concentration=[]
     for i in range(len(phase3)):
         df2,df_phase2=df_from_phase_bson(phase2[i],path1)
         df3,df_phase3=df_from_phase_bson(phase3[i],path1)
+        date=list(add_time_as_timeseries(df2)['timeserie'])
+        date.extend(add_time_as_timeseries(df3)['timeserie'])
         flow=np.zeros(len(df2)+len(df3))
         time=np.zeros(len(df2)+len(df3))
+        t0=time_to_num(date[0])
+        j=0
+        for t in date:
+            time[j]=time_to_num(t)-t0
+            j=j+1
         df2=add_time_as_number(df2,'timestamp')
         df3=add_time_as_number(df3,'timestamp')
-        t2_3=time_to_num(timefromiso(np.array(df3['timestamp'])[0]))-time_to_num(timefromiso(np.array(df2['timestamp'])[-1]))
+        #density=np.zeros(len(df2)+len(df3))
+        #t2_3=time_to_num(timefromiso(np.array(df3['timestamp'])[0]))-time_to_num(timefromiso(np.array(df2['timestamp'])[-1]))
         flow[:len(df2)]=np.array(df2['Analogs.analog1'])
         flow[len(df2):]=np.array(df3['Analogs.analog1'])
-        time[:len(df2)]=np.array(df2['Time number'])
-        time[len(df2):]=np.array(df3['Time number'])+np.array(df2['Time number'])[-1]+t2_3
-        plt.figure()
-        residual_liquid_concentration_over_time(flow,time,df_phase3['PhaseVars.phaseVariable9'][0])
+#        density[:len(df2)]=np.array(df2['Analogs.analog22'])
+#        density[len(df2):]=np.array(df3['Analogs.analog22'])
+        density=np.array(df_phase3['PhaseVars.phaseVariable9'])[-1]
+        #time[:len(df2)]=np.array(df2['Time number'])
+        #time[len(df2):]=np.array(df3['Time number'])+np.array(df2['Time number'])[-1]+t2_3
+        if figure:
+            plt.figure()
         
+        x=residual_humidity_over_time(flow,time,density,figure)
+        final_liquid_concentration.append(x[-1])
     return final_liquid_concentration
 
 
+#%%
+"""i want to correlate the slope of the curve time-volume over volume with the residual humidity"""
+def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
+        """df_phase2 is the df of analogs in phase2, df_phase3 is the df of analogs in phase 3 and phasedf3 is the df of phasevars in phase3"""
+    
+        flow=np.zeros(len(df_phase2)+len(df_phase3))
+        time=np.zeros(len(df_phase2)+len(df_phase3))        
+        date=list(add_time_as_timeseries(df_phase2)['timeserie'])
+        date.extend(add_time_as_timeseries(df_phase3)['timeserie'])
+        flow[:len(df_phase2)]=np.array(df_phase2['Analogs.analog1'])
+        flow[len(df_phase2):]=np.array(df_phase3['Analogs.analog1'])
+        t0=time_to_num(date[0])
+        i=0
+        for t in date:
+            time[i]=time_to_num(t)-t0
+            i=i+1
+        residual_humidity=residual_humidity_over_time(flow,time,phasedf3['PhaseVars.phaseVariable9'][0],figure=False)
+        limit=max(np.array(phasedf3['PhaseVars.phaseVariable4']))-1.   #limit after that i consider constant the pressure
+        res = next(x for x, val in enumerate(df_phase3['Analogs.analog3']) if val > limit)
+        
+        #res2 = next(x for x, val in enumerate(df['Analogs.analog3'][res:]) if val <limit-2 )
+        res=res+len(df_phase2)
+        #res2=res2+len(df_phase2)
+        vol=volume_from_flow(flow,time) 
+        vol_index=next(x for x, val in enumerate(vol) if val > 10.8768)  #index which before the pumped volume is less than the filter volume
+                                                                        # and so the formula is not valid
+#        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
+#        
+        solid_concentration=2.65746*(1-phasedf3['PhaseVars.phaseVariable9'][0])/(phasedf3['PhaseVars.phaseVariable9'][0]*(1-2.65746))
+        
+        volume=volume_from_flow(flow[res:-5],time[res:-5])
+        t_V=(time[res+1:-5]-time[res])/volume[1:] #i calculate t/V
+        
+        """ slope of t_V over V in function of humidity"""
+        #the first 200 points in the reagion of constant pressure are used to define the starting slope, 
+        #we then compute the derivate for next slopes
+        starting_slope=sp.stats.linregress(volume[100:201],t_V[99:200])[0]
+        slopes=np.gradient(t_V[200:],volume[201:])
+        #here i plot the slopes and the humidity in the time in the same graph
+        """
+        fig,ax=plt.subplots()
+        ax2=ax.twinx()
+        ax.scatter(time[res+201:-5],slopes,marker='.')
+        ax.axhline(y=starting_slope)    
+        ax.axhline(y=2*starting_slope,linestyle='--')
+        ax2.scatter(time[res+200:-5],residual_humidity[res+200:-5],marker='.',color='red')
+        ax2.axhline(y=0.2,color='red',linestyle='-.')
+        """
+        #plt.scatter(np.log(slopes),(residual_humidity[res+201:-5]))
+        
+        
+        """alpha and humidity"""
+        solid_concentration=2.65746*(1-phasedf3['PhaseVars.phaseVariable9'][0])/(phasedf3['PhaseVars.phaseVariable9'][0]*(1-2.65746))
+        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
+        alpha=slopes*mean_pressure/solid_concentration
+        plt.scatter(alpha,(residual_humidity[res+201:-5]))
+        plt.xlabel('alpha')
+        plt.ylabel('residual humidity')
+        date1=date[-1].strftime("%Y-%m-%d-%H-%M")
+        plt.savefig(fname=path+'/risultati/t_V over V/umidità residua/alpha_humidity/date '+date1+'.png')
+        plt.close()
+        #here i plot humidity in function of the slope
+        #plt.figure()
+      
+        
+        """plotting t_v over V and residual humidity over time"""
+        
+        fig,ax=plt.subplots(2,1)
+        fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
+        ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
+        #ax[0].axvline(x=date[vol_index])
+        ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
+        fig.savefig(fname=path+'/risultati/t_V over V/umidità residua/umidità e t_v slope/date '+date1+'.png')
+        plt.close()
+        #plt.colorbar()
 
 #%%
-def end_cycle(file,path,time=None):
-    df,df_phase=df_from_phase_bson(file,path)
-    if time==None:
-        time=300
-        
-    df=add_time_as_number(df,'timestamp')
-    end_index = next(x for x, val in enumerate(np.array(df['Analogs.analog3'])[int(len(df['Time number'])/2):]) if val <10 )
-    t_start=df['Time number'][end_index]-time
-    start_index = next(x for x, val in enumerate(np.array(df['Time number']))
-                                  if val > t_start)
-    volume=volume_from_flow(np.array(df['Analogs.analog1'])[start_index:end_index],np.array(df['Time number'])[start_index:end_index])[-1]
-    tot_time=df['Time number'][end_index]-df['Time number'][start_index]
-    date=timefromiso(df['timestamp'][0])
-    #mean_flow=volume/tot_time
-    return volume,date
+#def end_cycle(file,path,time=None):
+#    df,df_phase=df_from_phase_bson(file,path)
+#    if time==None:
+#        time=300
+#        
+#    df=add_time_as_number(df,'timestamp')
+#    end_index = next(x for x, val in enumerate(np.array(df['Analogs.analog3'])[int(len(df['Time number'])/2):]) if val <10 )
+#    t_start=df['Time number'][end_index]-time
+#    start_index = next(x for x, val in enumerate(np.array(df['Time number']))
+#                                  if val > t_start)
+#    volume=volume_from_flow(np.array(df['Analogs.analog1'])[start_index:end_index],np.array(df['Time number'])[start_index:end_index])[-1]
+#    tot_time=df['Time number'][end_index]-df['Time number'][start_index]
+#    date=timefromiso(df['timestamp'][0])
+#    #mean_flow=volume/tot_time
+#    return volume,date
     
         
-def plot_end_cycles(filenames,path,endtime=None):
-    dates=[]
-    volumes=[]
-    #mean_flows=[]
-    for file in filenames:
-        v,d=end_cycle(file,path,time=endtime)
-        dates.append(d)
-        volumes.append(v)
-#        mean_flows.append(mf)
-    sorted_index = np.argsort(dates)
-    volumes = [volumes[i] for i in sorted_index]
-    #mean_flows = [mean_flows[i] for i in sorted_index]
-    dates = [dates[i] for i in sorted_index]
-    plt.figure()
-    plt.plot_date(dates,volumes)
-    return volumes,dates
+#def plot_end_cycles(filenames,path,endtime=None):
+#    dates=[]
+#    volumes=[]
+#    #mean_flows=[]
+#    for file in filenames:
+#        v,d=end_cycle(file,path,time=endtime)
+#        dates.append(d)
+#        volumes.append(v)
+##        mean_flows.append(mf)
+#    sorted_index = np.argsort(dates)
+#    volumes = [volumes[i] for i in sorted_index]
+#    #mean_flows = [mean_flows[i] for i in sorted_index]
+#    dates = [dates[i] for i in sorted_index]
 #    plt.figure()
-#    plt.plot_date(dates,mean_flows)
+#    plt.plot_date(dates,volumes)
+#    return volumes,dates
+##    plt.figure()
+##    plt.plot_date(dates,mean_flows)
     
 #%%
 #i=0
