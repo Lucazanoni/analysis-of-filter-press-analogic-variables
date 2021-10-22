@@ -85,7 +85,7 @@ def json_file_to_df(filenames, path):
         globals()[file]=pd.read_json(file)
         
 def read_json_files(name,path):
-    with open(name) as json_file:
+    with open(path+'/'+name) as json_file:
         return json.load(json_file)
 
 """create a variable for phase of interst with the name of all the file of that phase """
@@ -386,7 +386,7 @@ def specific_cake_resistances(filenames,path,solid_density=2.65746,liquid_densit
 """i have only solid density, slurry density, liquid density and slurry volume"""
 
 
-def residual_humidity_over_time(flow,time,slurry_density,figure=True,liquid_density=1.,final_volume=10.8768):
+def residual_humidity_over_time(flow,time,slurry_density,figure=False,liquid_density=1.,final_volume=10.8768):
     solid_density=2.65746
     pumped_volume=np.array(volume_from_flow(flow,time))
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
@@ -470,7 +470,7 @@ def all_residual_humidity_over_time(figure=True):
 
 #%%
 """i want to correlate the slope of the curve time-volume over volume with the residual humidity"""
-def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
+def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3,savefigure=False):
         """df_phase2 is the df of analogs in phase2, df_phase3 is the df of analogs in phase 3 and phasedf3 is the df of phasevars in phase3"""
     
         flow=np.zeros(len(df_phase2)+len(df_phase3))
@@ -484,7 +484,10 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
         for t in date:
             time[i]=time_to_num(t)-t0
             i=i+1
-        residual_humidity=residual_humidity_over_time(flow,time,phasedf3['PhaseVars.phaseVariable9'][0],figure=False)
+        density=np.zeros(len(df_phase2)+len(df_phase3))
+        density[:len(df_phase2)]=np.array(df_phase2['Analogs.analog22'])
+        density[len(df_phase2):]=np.array(df_phase3['Analogs.analog22'])
+        residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
         limit=max(np.array(phasedf3['PhaseVars.phaseVariable4']))-.5   #limit after that i consider constant the pressure
         res = next(x for x, val in enumerate(df_phase3['Analogs.analog3']) if val > limit)
         
@@ -494,8 +497,9 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
         vol=volume_from_flow(flow,time) 
         vol_index=next(x for x, val in enumerate(vol) if val > 10.8768)  #index which before the pumped volume is less than the filter volume
                                                                         # and so the formula is not valid
-#        
-        solid_concentration=2.65746*(1-phasedf3['PhaseVars.phaseVariable9'][0])/(phasedf3['PhaseVars.phaseVariable9'][0]*(1-2.65746))
+
+        #density=np.mean(density)
+        solid_concentration=2.65746*(1-density)/(density*(1-2.65746))
         
         volume=volume_from_flow(flow[res:-5],time[res:-5])
         t_V=(time[res+1:-5]-time[res])/volume[1:] #i calculate t/V
@@ -509,43 +513,61 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3):
        
 
         plt.axhline(y=0.2,color='red',linestyle='-.')
-     
-        plt.scatter(slopes,(residual_humidity[res+1:-5]))
-        path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/umidità residua/umidità e t_v slope/umidità-pendenze"
-        from datetime import datetime
-        n=(datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f'))
-        plt.savefig(path+'/'+date1+'.png')
-        plt.close()
-        
-        """alpha and humidity"""
-        
-        solid_concentration=2.65746*(1-phasedf3['PhaseVars.phaseVariable9'][0])/(phasedf3['PhaseVars.phaseVariable9'][0]*(1-2.65746))
-        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
-        alpha=slopes*mean_pressure/solid_concentration
-        plt.scatter(alpha,(residual_humidity[res+101:-5]))
-        plt.xlabel('alpha')
+        plt.figure()
+        plt.scatter(np.log(slopes),(residual_humidity[res+1:-5]))
+        plt.xlabel('log(slope t_V over V)')
         plt.ylabel('residual humidity')
-        date1=date[-1].strftime("%Y-%m-%d-%H-%M")
-       
-        plt.savefig(fname=path+'/risultati/t_V over V/umidità residua/alpha_humidity/date '+date1+'.png')
-        plt.close()
-
+        path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/immagini_prova"
+        if savefigure:
+            plt.savefig(path+'/slope-hum-'+date1+'.png')
+            plt.close()
         
-        
-        """plotting t_v over V and residual humidity over time"""
+#        """alpha and humidity"""
+#        
+#        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
+#        alpha=slopes*mean_pressure/solid_concentration[res+1:-5]
+#        plt.figure()
+#        plt.scatter(alpha,residual_humidity[res+1:-5])
+#        plt.xlabel('alpha')
+#        plt.ylabel('residual humidity')
+#        plt.axhline(y=0.2,color='red',linestyle='-.')
+#        if savefigure:
+#            plt.savefig(fname=path+'/alfa-hum-'+date1+'.png')
+#            plt.close()
+#
+#        
+#        
+#        """plotting t_v over V and residual humidity over time"""
+#        plt.figure()
+#        fig,ax=plt.subplots(2,1)
+#        fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
+#        ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
+#        #ax[0].axvline(x=date[vol_index])
+#        ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
+#        if savefigure:
+#            fig.savefig(fname=path+'/t_V over V-hum- '+date1+'.png')
+#            plt.close()  
 
-        fig,ax=plt.subplots(2,1)
-        fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
-        ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
-        #ax[0].axvline(x=date[vol_index])
-        ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
-        fig.savefig(fname=path+'/risultati/t_V over V/umidità residua/umidità e t_v slope/nel_tempo '+date1+'.png')
-        plt.close()
+
+#%%
+            
+"""return the slopes which corresponds to a target humidity"""          
+
+def slope_per_humidity(slopes,residual_humidity,target_humidity=0.2):
+    index=0
+    try:
+        index=next(x for x, val in enumerate(residual_humidity) if val > target_humidity)
+        return(sloper[index])
+    except:
+        print('Residual humidity never reach target humidity' )
+        return -1
+    
+
 
 
 
 #%%
-def density_over_time(files2,files3,path):
+def density_over_time(files2,files3,path,figure=False):
     densities=[]
     times=[]
     for i in range(len(files3)):
@@ -559,6 +581,10 @@ def density_over_time(files2,files3,path):
         t[len(df2):]=add_time_as_number(df3,'timestamp')['Time number']+t[len(df2)-1]
         densities.append(d)
         times.append(t)
+        if figure:
+            plt.figure()
+            plt.scatter(t,d)
+            plt.ylim([0,max(d)+0.02])
     return densities,times
 #%%
 #def end_cycle(file,path,time=None):
