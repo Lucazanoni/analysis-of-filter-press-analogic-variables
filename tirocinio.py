@@ -47,23 +47,15 @@ analog_process=['Analogs.analog1','Analogs.analog3','Analogs.analog20','Analogs.
 def extract_bson_files_from_zip(zip_path,destination_path):
     """getting all filename of zipfiles in the zip_path directory""" 
     import zipfile
-    import shutil
     files=[]
     os.chdir(zip_path)
     for file in glob.glob("*.zip"):
         files.append(file)
-    """now, for ech zipname, i have to:
-        -unzip the folder in a directory
-        -copy the bson file of the folder in the destination_path directory
-        -eliminate the folder
-        """
+    """extract files in the target directory"""
     for file in files:
         with zipfile.ZipFile(file,"r") as zip_ref:
             zip_ref.extractall(destination_path)
-#            os.chdir(path3+'/output')
-#            name = os.listdir(path)[0]
-#            shutil.copy(path3+'/'+name,destination_path+'/'+name)
-#            shutil.rmtree(path3+'/output')
+
 #%%
 """READING AND OPENING FILES JSON AND BSON"""
 
@@ -283,7 +275,7 @@ def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
    if there is a change in the slope i find the changing point for each cycle"""
    
 def time_volume_over_volume(filenames, path,figure=False,savefig=False):
-    pressure='Analogs.analog3'
+
     slopes=[]
     intercepts=[]
     err=[]
@@ -430,12 +422,12 @@ def all_final_humidity(filenames,path):
     liquid_concentrations=[]
     for file in filenames:
         df,df_phase=df_from_phase_bson(file,path)
-        liquid_concentrations.append(final_residual_liquid_concentration(np.array(df_phase['PhaseVars.phaseVariable6'])[-1],
+        liquid_concentrations.append(final_residual_humidity(np.array(df_phase['PhaseVars.phaseVariable6'])[-1],
                                                                         np.mean(np.array(df_phase['PhaseVars.phaseVariable9']))))
     return liquid_concentrations
     #%%
 
-def all_residual_humidity_over_time(figure=True):
+def all_residual_humidity_over_time(phase2,phase3,figure=True):
     final_liquid_concentration=[]
     for i in range(len(phase3)):
         df2,df_phase2=df_from_phase_bson(phase2[i],path1)
@@ -522,31 +514,31 @@ def tV_V_slope_and_humidity(df_phase2,df_phase3,phasedf3,savefigure=False):
             plt.savefig(path+'/slope-hum-'+date1+'.png')
             plt.close()
         
-#        """alpha and humidity"""
-#        
-#        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
-#        alpha=slopes*mean_pressure/solid_concentration[res+1:-5]
-#        plt.figure()
-#        plt.scatter(alpha,residual_humidity[res+1:-5])
-#        plt.xlabel('alpha')
-#        plt.ylabel('residual humidity')
-#        plt.axhline(y=0.2,color='red',linestyle='-.')
-#        if savefigure:
-#            plt.savefig(fname=path+'/alfa-hum-'+date1+'.png')
-#            plt.close()
-#
-#        
-#        
-#        """plotting t_v over V and residual humidity over time"""
-#        plt.figure()
-#        fig,ax=plt.subplots(2,1)
-#        fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
-#        ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
-#        #ax[0].axvline(x=date[vol_index])
-#        ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
-#        if savefigure:
-#            fig.savefig(fname=path+'/t_V over V-hum- '+date1+'.png')
-#            plt.close()  
+        """alpha and humidity"""
+        
+        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
+        alpha=slopes*mean_pressure/solid_concentration[res+1:-5]
+        plt.figure()
+        plt.scatter(alpha,residual_humidity[res+1:-5])
+        plt.xlabel('alpha')
+        plt.ylabel('residual humidity')
+        plt.axhline(y=0.2,color='red',linestyle='-.')
+        if savefigure:
+            plt.savefig(fname=path+'/alfa-hum-'+date1+'.png')
+            plt.close()
+
+        
+        
+        """plotting t_v over V and residual humidity over time"""
+        plt.figure()
+        fig,ax=plt.subplots(2,1)
+        fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
+        ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
+        #ax[0].axvline(x=date[vol_index])
+        ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
+        if savefigure:
+            fig.savefig(fname=path+'/t_V over V-hum- '+date1+'.png')
+            plt.close()  
 
 
 #%%
@@ -557,7 +549,7 @@ def slope_per_humidity(slopes,residual_humidity,target_humidity=0.2):
     index=0
     try:
         index=next(x for x, val in enumerate(residual_humidity) if val > target_humidity)
-        return(sloper[index])
+        return(slopes[index])
     except:
         print('Residual humidity never reach target humidity' )
         return -1
@@ -586,72 +578,8 @@ def density_over_time(files2,files3,path,figure=False):
             plt.scatter(t,d)
             plt.ylim([0,max(d)+0.02])
     return densities,times
-#%%
-#def end_cycle(file,path,time=None):
-#    df,df_phase=df_from_phase_bson(file,path)
-#    if time==None:
-#        time=300
-#        
-#    df=add_time_as_number(df,'timestamp')
-#    end_index = next(x for x, val in enumerate(np.array(df['Analogs.analog3'])[int(len(df['Time number'])/2):]) if val <10 )
-#    t_start=df['Time number'][end_index]-time
-#    start_index = next(x for x, val in enumerate(np.array(df['Time number']))
-#                                  if val > t_start)
-#    volume=volume_from_flow(np.array(df['Analogs.analog1'])[start_index:end_index],np.array(df['Time number'])[start_index:end_index])[-1]
-#    tot_time=df['Time number'][end_index]-df['Time number'][start_index]
-#    date=timefromiso(df['timestamp'][0])
-#    #mean_flow=volume/tot_time
-#    return volume,date
-    
-        
-#def plot_end_cycles(filenames,path,endtime=None):
-#    dates=[]
-#    volumes=[]
-#    #mean_flows=[]
-#    for file in filenames:
-#        v,d=end_cycle(file,path,time=endtime)
-#        dates.append(d)
-#        volumes.append(v)
-##        mean_flows.append(mf)
-#    sorted_index = np.argsort(dates)
-#    volumes = [volumes[i] for i in sorted_index]
-#    #mean_flows = [mean_flows[i] for i in sorted_index]
-#    dates = [dates[i] for i in sorted_index]
-#    plt.figure()
-#    plt.plot_date(dates,volumes)
-#    return volumes,dates
-##    plt.figure()
-##    plt.plot_date(dates,mean_flows)
-    
-#%%
-#i=0
-#for file in phase3:
-#    df,df_phase=df_from_phase_bson(file, path1)
-#    x=np.zeros([62,5])
-#    x[i,0]=max(np.array(df_phase['PhaseVars.phaseVariable1']))
-#    x[i,1]=max(np.array(df_phase['PhaseVars.phaseVariable2']))
-#    x[i,2]=max(np.array(df_phase['PhaseVars.phaseVariable4']))
-#    x[i,3]=max(np.array(df_phase['PhaseVars.phaseVariable6']))
-#    x[i,4]=max(np.array(df_phase['PhaseVars.phaseVariable9']))
-#from sklearn.cluster import AffinityPropagation
-#clustering = AffinityPropagation().fit(x)
-#clustering.labels_
-#    
-#%%
-#from kneed import KneeLocator
-#press_slope=[]
-#for file in phase3:
-#    df,df_phase=df_from_phase_bson(file, path1)
-#    df=add_time_as_number(df,'timestamp')
-#    kn = kneed.KneeLocator(df['Time number'],df['Analogs.analog3'], curve='concave', direction='increasing')
-#    ind = (np.abs(df1['Time number'] - kn.knee)).argmin()
-#    press_slope.append(sp.stats.linregress(df['Time number'],df['Analogs.analog3'])[0])
-#press_slope1=[]
-#press_slope2=[]
-#for i in idx:
-#    press_slope1.append(press_slope[i])
-#for i in idx1:
-#    press_slope2.append(press_slope[i])
+
+
    
 #%%
 def volume_density_bson(files,path):
@@ -809,17 +737,6 @@ def feeding_volume_in_a_phase(phase_file,path):
     plt.scatter(volume[20:-5],1/df['Analogs.analog1'][20:-5])
     
     
-#%%    
-"""little pipeline"""
-"""
-df2,df_p_var2=df_from_phase_bson(phase2[12],path1)
-df3,df_p_var3=df_from_phase_bson(phase3[12],path1)
-for index1 in df2.columns:
-    index2 =df2.columns[1]
-    if (index1 not in analog_not_measured and index2 not in analog_not_measured and index1!='timestamp' and index2!='timestamp'):
-        plt.figure()
-        plt.scatter(df2[index1],df2[index2],marker='.')
-        plt.title(index1+'-'+index2)"""
 
 #%%
 
@@ -1219,70 +1136,8 @@ def linear_regression_assumptions(features, label, feature_names=None):
     multicollinearity_assumption()
     autocorrelation_assumption()
     homoscedasticity_assumption()
-#%%        
-
-#\"""matching total feeding time with slurry density if  flow is almost constant"""
-#fed_in=[]
-#T_alim=[]
-#density=[]
-#fed_fin=[]
-#t_s,t_e=select_cycle2_time(dfSlow,'analogSlow21')
-#indices_slow=select_cycles_indices_by_time(dfSlow,t_s,t_e)
-#indices_fast=select_cycles_indices_by_time(dfFast,t_s,t_e)
-#indices_slow=indices_slow[1:]
-#indices_fast=indices_fast[1:]
-#for index in indices_slow:
-#    a=np.max(np.array(dfSlow['analogSlow19'])[index[0]:index[1]])
-#    fed_in.append(a)
-#for index in indices_fast:
-#    a= final_feeding_delivery_on_pressure(dfFast,index,14)
-#    fed_fin.append(a)  
-##    c=np.max(np.array(dfSlow['analogSlow20'])[index[0]:index[1]])
-##    density.append(c)
-#for i in range(0,len(indices_slow)):
-#    if (fed_in[i]>200. and fed_in[i]<260. and fed_fin[i]>0. and fed_fin[i]<10.):
-#        b=np.max(np.array(dfSlow['analogSlow21'])[indices_slow[i][0]:indices_slow[i][1]])
-#        c=np.max(np.array(dfSlow['analogSlow20'])[indices_slow[i][0]:indices_slow[i][1]])
-#        T_alim.append(b)
-#        density.append(c)
-#plt.scatter(T_alim,density)
-#%%
-#
-#import scipy
-#lin_reg=scipy.stats.linregress(T_alim,density)
-#xn=np.linspace(min(T_alim),max(T_alim),200)
-#yn = lin_reg.intercept+lin_reg.slope*xn
-#
-#plt.plot(T_alim,density, 'or')
-#plt.plot(xn,yn)
-#plt.plot(xn,yn+lin_reg.stderr)
-#plt.plot(xn,yn-lin_reg.stderr)
-#plt.show()
-
-#%%
-
-#"""we want to compare some measure of different cycle
-#this function, giving the array of values, theindices of the cycles and the measure we want, give a statistic about the cycles
-#"""
-#
-#def cycle_stat_measure(arr, indices,statistic,statistic_libr):
-#    """indices should be a matrix Nx2 or a array of array 2x1"""
-#    vals=[]
-#    module = __import__(statistic_libr)
-#    method_to_call = getattr(module, statistic)
-#    for index in indices:
-#        vals.append(method_to_call(arr[index[0]:index[1]]))
-#    return vals
-#
-#def boxplot(arr, indices):
-#    plt.figure()
-#    data=[]
-#    for index in indices:
-#        data.append(arr[index[0]:index[1]])
-#    plt.boxplot(data)
 
 
-#%%
 
 #%%
 def plot_with_same_sampling(df,namevars,path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
@@ -1314,41 +1169,5 @@ def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
                 
 
 
-"""
 
 
-
-#%%
-df_analog1_3=pd.DataFrame()
-for file in phase2:
-    df,df_phase=df_from_phase_bson(file,path1)
-    df=add_time_as_timeseries(df,'timestamp')
-    df=df[['timeserie','Analogs.analog1','Analogs.analog3']]
-    df_analog1_3=pd.concat([df_analog1_3,df],axis=0)
-for file in phase3:
-    df,df_phase=df_from_phase_bson(file,path1)
-    df=add_time_as_timeseries(df,'timestamp')
-    df=df[['timeserie','Analogs.analog1','Analogs.analog3']]
-    df_analog1_3=pd.concat([df_analog1_3,df],axis=0)
-
-df_analog1_3= df_analog1_3.set_index('timeserie')   
-df_analog1_3= df_analog1_3.sort_index()
-
-#%%
-from statsmodels.tsa.seasonal import seasonal_decompose
-from dateutil.parser import parse
-
-# Import Data
-df=df_analog1_3
-# Multiplicative Decomposition 
-#result_mul = seasonal_decompose(df['Analogs.analog1'], model='multiplicative', extrapolate_trend='freq')
-
-# Additive Decomposition
-result_add = seasonal_decompose(df['Analogs.analog1'], model='additive', )
-
-# Plot
-plt.rcParams.update({'figure.figsize': (10,10)})
-#result_mul.plot().suptitle('Multiplicative Decompose', fontsize=22)
-result_add.plot().suptitle('Additive Decompose', fontsize=22)
-plt.show()
-"""
