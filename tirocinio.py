@@ -19,12 +19,14 @@ import statsmodels
 from statsmodels.tsa.stattools import acf
 import seaborn as sns
 from statsmodels.graphics.tsaplots import plot_acf
+from datetime import datetime
 path1="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/bson"
 path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro"
 pathprova="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/immagini_prova"
-path2="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/power"
+path2="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/power 15 sett - 9 novembre"
 path3="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/prova"
-
+pathEventLog="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/energy 15 sett - 9 novembre/CycleEventLog"
+pathCycleLog="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/15 settembre- 4 ottobre dati/energy 15 sett - 9 novembre/CycleLog"
 #%%
 #read excel file
 #os.chdir(path)
@@ -45,6 +47,8 @@ analog_process=['Analogs.analog1','Analogs.analog3','Analogs.analog20','Analogs.
 analogflow='Analogs.analog1'
 analogpressure='Analogs.analog3'
 analogdensity='Analogs.analog22'
+
+
 #%%
 """ EXTRACT ZIP FILES
     some bson files are inside zip files the contain a folder named output that contain the bson file"""
@@ -74,11 +78,11 @@ def read_json_names(path):
 def json_file_to_df(filenames, path):
     os.chdir(path)
     for file in filenames:
-        #file1=file[33:-5]
-        #file1=file1.replace(" ","")
-        #file1=file1.replace("(","_")
-        #file1=file1.replace(")","")
-        globals()[file]=pd.read_json(file)
+        file1=file[33:-5]
+        file1=file1.replace(" ","")
+        file1=file1.replace("(","_")
+        file1=file1.replace(")","")
+        globals()[file1]=pd.read_json(file)
         
 def read_json_files(name,path):
     with open(path+'/'+name) as json_file:
@@ -141,11 +145,11 @@ def take_datetime(df,timename='_time'):
 
 #take time from iso 8601 data
 def timefromiso(dataiso):
-    return datetime.datetime.fromisoformat(dataiso[:-1])
+    return datetime.fromisoformat(dataiso[:-1])
 
 #trasforma orario formato hh,mm,ss,micros in secondi 
 def time_to_num(t):
-    return(t.microsecond*10**(-6)+t.second+t.minute*60+t.hour*60*60+(t.day-1)*60*60*24+(t.month-1)*60*60*24*30)
+    return t.timestamp()
     
 #add to df a column of time in second
 """if time column is in iso format"""  
@@ -157,13 +161,15 @@ def add_time_as_number(df,timename='_time'):
     
 """if time column is in datetime format"""    
 def add_time_as_number2(df,timename='_time'):
+    if not(timename in df.columns):
+        raise TypeError(timename+' do not exist in the dataframe')
     timenum=[]
-    t0=df[timename].iloc[0]
-    t0=time_to_num(t0)
+    t0=time_to_num(df[timename].iloc[0])
     for time in df[timename]:
         timenum.append(time_to_num(time)-t0)
     timenumberdf=pd.DataFrame({"Time number":timenum})
     return pd.concat([df,timenumberdf],axis=1)
+
 
 def numbers_from_time(df,timename='_time'):
     timenum=[]
@@ -227,8 +233,8 @@ def max_of_phase(files, path,variables):
 
 
 
-
-
+#%%
+"""RESIDUAL HUMIDITY AND t_V/V CURVE"""
 
 #%%
     
@@ -648,8 +654,9 @@ def residual_humidity_error(slurry_density,delta_slurry,volume,delta_volume,soli
 def volume_error(flow,time,percentual_flow_error=0.005):
     err=percentual_flow_error*flow
     tot_err=0
+    
     for i in range(len(flow)-1):
-        tot_err=tot_err+(err[i]+err[i+1])*0.5
+        tot_err=tot_err+(err[i]+err[i+1])*0.5*(time[i+1]-time[i])
     return tot_err
 
 
@@ -779,7 +786,7 @@ def slope_ratio_of_target_humidity(df2,df3,target_humidity,starting_points=200,n
     residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
     j= np.where(residual_humidity<target_humidity)[0]
     if len(j)==0:
-              print("target humidity  is not reached in ",phase2[i][:-24])
+              #print("target humidity  is not reached in ",phase2[i][:-24])
               return 0
     else:                  
         j=j[0]
@@ -791,11 +798,7 @@ def slope_ratio_of_target_humidity(df2,df3,target_humidity,starting_points=200,n
         mean_slope=np.mean(slopes[j-n_points_mean_gradient:j+n_points_mean_gradient])
         return mean_slope/starting_slope
 #short test pipeline 
-ratio=[]
-for i in range(len(phase2)):
-    df2,df_p2=df_from_phase_bson(phase2[i],path1)
-    df3,df_p3=df_from_phase_bson(phase3[i],path1)
-    ratio.append(slope_ratio_of_target_humidity(df2,df3,0.22,200))
+
 
 
     
@@ -822,7 +825,7 @@ def density_over_time(files2,files3,path,figure=False):
             plt.ylim([0,max(d)+0.02])
     return densities,times
 
-
+"""END RESIDUAL HUMIDITY ANALYSIS"""
 
 
 
@@ -832,6 +835,12 @@ def density_over_time(files2,files3,path,figure=False):
 
    
 #%%
+
+"""PRELIMINARY AND GENEIRC FUNCTIONS AND SEPARATION IN CYCLES"""
+
+
+
+
 def volume_density_bson(files,path):
     volume=[]
     density=[]
@@ -1176,7 +1185,7 @@ def final_feeding_delivery_on_pressure(df,indices,limit_pressure):
             return df[feed_var][j-5]
 
 #%%
-            
+"""not mine"""            
 def linear_regression_assumptions(features, label, feature_names=None):
     """
     Tests a linear regression on the model to see if assumptions are being met
@@ -1417,7 +1426,79 @@ def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
 
 
                 
+#%%
+            
+"""ENERGIES AND POWERS"""
+
+def power_diff(power_df):
+    return power_df['load1']-power_df['load2']-power_df['load3']-power_df['load4']-power_df['load5']-power_df['load6']-power_df['load7']-power_df['load8']
+    
+    
+def power_errors(percentual_error,df):
+    return np.array(df)*percentual_error
 
 
 
+def energy_from_power(powers,times):
+    energy=np.zeros(len(powers))
+    energy[0]=0.
+    for i in range(1,len(powers)):
+        energy[i]=energy[i-1]+(powers[i]+powers[i-1])*(times[i]-times[i-1])*0.5
+    return energy
 
+def final_energy_error(power_error,times):
+    total_error=0
+    for i in range(len(power_error)-1):
+        total_error=total_error+(power_error[i]+power_error[i+1])*(times[i+1]-times[i])*0.5
+    return total_error
+
+
+"""this function allow to select in a dataframe with dates, the data between 2 specific dates"""
+"""it returns the section of dataFrame between the two dates""" 
+def df_select_from_time(df,start_date,end_date,time_column_name='_time'):
+    return df[(df[time_column_name]>start_date) & (df[time_column_name]<end_date)]
+    
+#%%
+"""verifica se cyclelog è corretto"""
+"""fino all'indice 70 cyclelog mi da solo nan, quindi inizio dopo"""
+"""le colonne che indicano inizo e fine ciclo si chiamano timeFrom e timeTo"""
+energy=[]
+error=[]
+power=powers[0]
+if not('Time number' in power.columns):
+    power=add_time_as_number2(power)
+for i in range(70,93):
+    tstart=timefromiso(CycleLog['timeFrom'][i])
+    tend=timefromiso(CycleLog['timeTo'][i])
+
+    df=df_select_from_time(power,tstart,tend)
+    energy.append(energy_from_power(np.array(df['load1']),np.array(df['Time number']))[-1])
+    power_error=power_errors(0.01,df['load1'])
+    error.append(final_energy_error(power_error,np.array(df['Time number'])))
+#%%
+powers=[Power,Power_1,Power_2,Power_3,Power_4,Power_5,Power_6,Power_7,Power_8,Power_9,Power_10]
+energy=[]
+error=[]
+date=[]
+power=pd.DataFrame()
+for p in powers:
+    power=pd.concat([power,p])
+power=power.reset_index(drop=True)
+
+
+if not('Time number' in power.columns):
+    power=add_time_as_number2(power)
+    j=70
+    for i in range(j,len(CycleLog)):
+        tstart=timefromiso(CycleLog['timeFrom'][i])
+        tend=timefromiso(CycleLog['timeTo'][i])
+        try:
+            df=df_select_from_time(power,tstart,tend)
+            energy.append(energy_from_power(np.array(df['load1']),np.array(df['Time number']))[-1])
+        except:
+            j=i
+            continue
+       
+        power_error=power_errors(0.01,df['load1'])
+        error.append(final_energy_error(power_error,np.array(df['Time number'])))
+        date.append(tstart)
