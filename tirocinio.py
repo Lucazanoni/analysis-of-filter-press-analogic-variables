@@ -47,7 +47,13 @@ analog_process=['Analogs.analog1','Analogs.analog3','Analogs.analog20','Analogs.
 analogflow='Analogs.analog1'
 analogpressure='Analogs.analog3'
 analogdensity='Analogs.analog22'
+"""cicli esclusi perchè solo relativi a fasi non di pompaggio + iniziali dopo almeno 2 giorni di stop"""
+#cicli_da_escludere=[70,72,74,76,78,81,85,94,108,119,147,148,149,155,156,157,164,227,230,235,246,261,262]
 
+"""cicli esclusi perchè  solo relativi a fasi non di pompaggio + """
+"""iniziali dopo almeno 2 giorni di stop + cicli che durano > 6h"""
+cicli_da_escludere=[70,72,74,76,78,81,85,94,108,119,144,146,147,148,149,155,156,157,160, 164,184,200,201,226,227,
+                    229,230,234,235,239,240,246,249,257,261,262]
 
 #%%
 """ EXTRACT ZIP FILES
@@ -149,7 +155,7 @@ def timefromiso(dataiso):
 
 #trasforma orario formato hh,mm,ss,micros in secondi 
 def time_to_num(t):
-    return t.timestamp()
+    return t.timestamp()#+t.microseconds*10**(-6)
     
 #add to df a column of time in second
 """if time column is in iso format"""  
@@ -185,7 +191,7 @@ def numbers_from_time(df,timename='_time'):
 def add_time_as_timeseries(df,timename='timestamp'):
     timeserie=[]
     for time in df[timename]:
-        timeserie.append(datetime.datetime.fromisoformat(time[:-1]))
+        timeserie.append(timefromiso(time))
     timeserie=pd.DataFrame({'timeserie':timeserie})
     return pd.concat([df,timeserie],axis=1)
 #%%            
@@ -1432,6 +1438,14 @@ def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
 
 def power_diff(power_df):
     return power_df['load1']-power_df['load2']-power_df['load3']-power_df['load4']-power_df['load5']-power_df['load6']-power_df['load7']-power_df['load8']
+
+def power_error_diff(percentual_err,power_df):
+    err=np.zeros(len(power_df))
+    for i in range(1,9):
+        err=err+np.array(power_df['load'+str(i)])*percentual_err
+    return err
+        
+    
     
     
 def power_errors(percentual_error,df):
@@ -1441,15 +1455,15 @@ def power_errors(percentual_error,df):
 
 def energy_from_power(powers,times):
     energy=np.zeros(len(powers))
-    energy[0]=0.
+ 
     for i in range(1,len(powers)):
-        energy[i]=energy[i-1]+(powers[i]+powers[i-1])*(times[i]-times[i-1])*0.5
+        energy[i]=energy[i-1]+(powers[i]+powers[i-1])*((times[i]-times[i-1])/3600)*0.5
     return energy
 
 def final_energy_error(power_error,times):
     total_error=0
     for i in range(len(power_error)-1):
-        total_error=total_error+(power_error[i]+power_error[i+1])*(times[i+1]-times[i])*0.5
+        total_error=total_error+(power_error[i]+power_error[i+1])*((times[i+1]-times[i])/3600)*0.5
     return total_error
 
 
@@ -1458,28 +1472,86 @@ def final_energy_error(power_error,times):
 def df_select_from_time(df,start_date,end_date,time_column_name='_time'):
     return df[(df[time_column_name]>start_date) & (df[time_column_name]<end_date)]
     
-#%%
-"""verifica se cyclelog è corretto"""
-"""fino all'indice 70 cyclelog mi da solo nan, quindi inizio dopo"""
-"""le colonne che indicano inizo e fine ciclo si chiamano timeFrom e timeTo"""
-energy=[]
-error=[]
-power=powers[0]
-if not('Time number' in power.columns):
-    power=add_time_as_number2(power)
-for i in range(70,93):
-    tstart=timefromiso(CycleLog['timeFrom'][i])
-    tend=timefromiso(CycleLog['timeTo'][i])
+def energy_pie_chart(powerdf,timename='Time number',pathsave=path3, savefigure=False,name='piechart'):
+    energies=[]
+    if not(timename in powerdf.columns):
+        powerdf=add_time_as_number2(powerdf)
+    labels=['hydraulic unit', 'washing pump','compressor', 'filter feeding pump',' plates moving', 'recirculation pump'  ]
+    colors=['blue','orange','green','red','cyan','pink']
+    explode=(0.4,0.4,0.4,0,0.4,0.4)
+    for i in range(2,8):
+        load='load'+str(i)
+        energies.append(energy_from_power(np.array(powerdf[load]),np.array(powerdf['Time number']))[-1])
 
-    df=df_select_from_time(power,tstart,tend)
-    energy.append(energy_from_power(np.array(df['load1']),np.array(df['Time number']))[-1])
-    power_error=power_errors(0.01,df['load1'])
-    error.append(final_energy_error(power_error,np.array(df['Time number'])))
+    tot_en=sum(np.array(energies))
+    if tot_en<1:
+        nenergies=np.array(energies)*1000
+        tot_en=tot_en*1000
+        plt.figure()
+        patches=plt.pie(nenergies,explode=explode,autopct='%1.1f%%', shadow=False,colors=colors, startangle=170)
+        plt.legend(patches[0], labels, loc="lower right")
+        
+        plt.title('total energy = '+str(int(tot_en))+' [Wh]')
+        plt.tight_layout()
+    else:    
+        plt.figure()
+        patches=plt.pie(energies,explode=explode,autopct='%1.1f%%', shadow=False,colors=colors, startangle=170)
+        plt.legend(patches[0], labels, loc="lower right")
+        
+        plt.title('total energy = '+str(int(tot_en))+' [kWh]')
+        plt.tight_layout()
+    #plt.axis('equal')
+    if savefigure:
+        plt.savefig(pathsave+'/'+name+'.png')
+        plt.close()
+    return energies
+
+
+def total_time(start_date,end_date):
+    return time_to_num(end_date)-time_to_num(start_date)
+
+"""this function will furnish all the energies of each motor for each cycle"""
+"""it requires the power dataFrame and the dates of starting and ending cycles"""
+"""it will funish also the error"""
+def all_energies_for_cycles(power_df,starting_dates,ending_dates):
+    energies=[]
+    error=[]
+    if not('Time number' in power.columns):
+        power_df=add_time_as_number2(power_df)
+    for i in range(len(starting_dates)):
+        df=df_select_from_time(power_df,starting_dates[i],ending_dates[i])
+        all_energies=[]
+        all_errors=[]
+        for j in range(1,8):
+            load='load'+str(j)
+            all_energies.append(energy_from_power(np.array(df[load]),np.array(df['Time number']))[-1])
+            all_errors.append(final_energy_error(power_errors(0.01,df[load]),np.array(df['Time number'])))
+        energies.append(all_energies)
+        error.append(all_errors)
+
+    return energies,error
+
+def energies_diff(energies,energy_errors):
+    en_diff=energies[0]
+    en_err=energy_errors[0]
+    for i in range(1,len(energies)):
+        en_diff=en_diff-energies[i]
+        en_err=en_err+energy_errors[i]
+    return en_diff,en_err
+#%%
+    
+#"""short pipeline"""
+json_file_to_df(read_json_names(pathEventLog),pathEventLog)
+json_file_to_df(read_json_names(pathCycleLog),pathCycleLog)
+json_file_to_df(read_json_names(path2),path2)
+
+
 #%%
 powers=[Power,Power_1,Power_2,Power_3,Power_4,Power_5,Power_6,Power_7,Power_8,Power_9,Power_10]
 energy=[]
 error=[]
 date=[]
+mean_powers=[]
 power=pd.DataFrame()
 for p in powers:
     power=pd.concat([power,p])
@@ -1488,17 +1560,81 @@ power=power.reset_index(drop=True)
 
 if not('Time number' in power.columns):
     power=add_time_as_number2(power)
-    j=70
-    for i in range(j,len(CycleLog)):
-        tstart=timefromiso(CycleLog['timeFrom'][i])
-        tend=timefromiso(CycleLog['timeTo'][i])
-        try:
-            df=df_select_from_time(power,tstart,tend)
-            energy.append(energy_from_power(np.array(df['load1']),np.array(df['Time number']))[-1])
-        except:
-            j=i
-            continue
-       
-        power_error=power_errors(0.01,df['load1'])
-        error.append(final_energy_error(power_error,np.array(df['Time number'])))
-        date.append(tstart)
+j=70
+for i in range(j,len(CycleLog)):
+    tstart=timefromiso(CycleLog['timeFrom'][i])
+    tend=timefromiso(CycleLog['timeTo'][i])
+    time=total_time(tstart,tend)/3600
+    try:
+        df=df_select_from_time(power,tstart,tend)
+        energy.append(energy_from_power(np.array(df['load1']),np.array(df['Time number']))[-1])
+        pathsave=path+'/risultati/powers/pie chart'
+        energies=energy_pie_chart(df,pathsave=pathsave,name=str(i))
+        plt.close()
+    except:
+        j=i
+        continue
+    mean_powers.append(np.array(energies)/time)
+    power_error=power_errors(0.01,df['load1'])
+    error.append(final_energy_error(power_error,np.array(df['Time number'])))
+    date.append(tstart)
+
+#%%
+starting_date=add_time_as_timeseries(CycleLog[70:],'timeFrom')['timeserie']
+ending_date=add_time_as_timeseries(CycleLog[70:],'timeTo')['timeserie']
+energies,errors=all_energies_for_cycles(power,np.array(starting_date)[:197],np.array(ending_date)[:197])
+#%%
+cycles=list(range(197))
+#cicli_da_escludere=[70,72,74,76,78,81,85,108,119,147,148,149,155,156,157,164,246,261,262]
+for i in range(len(cicli_da_escludere)):
+    
+    cycles.remove(cicli_da_escludere[i]-70)
+energy_of_interest=[0,1,3,4,5,6]
+labels=['line motor','hydraulic unit', 'washing pump','compressor', 'filter feeding pump',' plates moving', 'recirculation pump'  ]
+for j in energy_of_interest:
+    plt.figure()
+    for i in cycles:
+
+        plt.scatter(i,energies[i][j],marker='.')
+        plt.errorbar(i,energies[i][j],errors[i][j],fmt='.k')
+    plt.title(labels[j])
+
+#%%
+energy_diff=[]
+energy_diff_error=[]
+for i in cycles:
+    en,err=energies_diff(energies[i],errors[i])
+    energy_diff.append(en)
+    energy_diff_error.append(err)
+plt.figure()
+plt.scatter(np.array(cycles)+70,energy_diff,marker='.')
+plt.errorbar(np.array(cycles)+70,energy_diff,energy_diff_error,fmt='.')
+plt.title('Difference between line energy and all other motor energy for cycle')
+plt.ylabel('Energy [kWh]')
+plt.xlabel('Cycle')
+#%%
+energy_line=[]
+line_err=[]
+for i in cycles:
+    energy_line.append(energies[i][0])
+    line_err.append(errors[i][0])
+percentage_energy_lost=np.array(energy_diff)/np.array(energy_line)*100
+perc_err=(np.array(line_err)/np.array(energy_line)+np.array(energy_diff_error)/np.array(energy_diff))
+perc_err=perc_err*percentage_energy_lost
+plt.scatter(np.array(cycles)+70,percentage_energy_lost,marker='.',alpha=0.5)
+plt.errorbar(np.array(cycles)+70,percentage_energy_lost,perc_err,fmt='.')
+plt.title('Percentage energy lost')
+plt.ylabel('Percentage [%]')
+plt.xlabel('Cycles')
+
+"""cicli con dei problemi : 160, """
+#%%
+percentage2=np.copy(percentage_energy_lost)
+for j in range(len(percentage_energy_lost)):
+    if percentage_energy_lost[j]>6:
+        df=df_select_from_time(power,timefromiso(CycleLog['timeFrom'][cycles[j]+70]),timefromiso(CycleLog['timeTo'][cycles[j]+70]))
+        df=df[-360:-1]
+        energy_lost=energy_from_power(np.array(power_diff(df)),np.array(df['Time number']))[-1]
+        energyline1=energy_from_power(np.array(df['load1']),np.array(df['Time number']))[-1]
+        percentage2[j]=energy_lost/energyline1*100
+        
