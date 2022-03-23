@@ -57,10 +57,12 @@ cicli_da_escludere=[70,72,74,76,78,81,85,94,108,119,144,146,147,148,149,155,156,
                     229,230,234,235,239,240,246,249,257,261,262]
 
 #%%
-""" EXTRACT ZIP FILES
-    some bson files are inside zip files the contain a folder named output that contain the bson file"""
+
 def extract_bson_files_from_zip(zip_path,destination_path):
-    """getting all filename of zipfiles in the zip_path directory""" 
+    """ EXTRACT ZIP FILES
+        
+        if bson files are zipped and the contain a folder named output that contain the bson file
+        getting all filename of zipfiles in the zip_path directory""" 
     import zipfile
     files=[]
     os.chdir(zip_path)
@@ -141,8 +143,17 @@ def cycle_list_file(n_cycle,path):
 #%%            
             
 """TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
-"""add in datadfame a column with data in datastamp format from data in iso8601 format"""
+
 def take_datetime(df,timename='_time'):
+    """add in Pandas dataframe with time data in iso8601 formata a column with data in datastamp format 
+    PARAMETERS:
+        df: Pandas dataframe
+        timename: the column name of the iso8601 time data. default: '_time'
+        
+    Returns:
+        The initial dataframe with a new column in last position with time in datastamp format, called 'time' 
+    
+    """
     dates=[]
     for date in df[timename]:
         date=dateutil.parser.isoparse(date[:-1])
@@ -158,17 +169,41 @@ def timefromiso(dataiso):
 def time_to_num(t):
     return t.timestamp()#+t.microseconds*10**(-6)
     
-"""add to df a column of time in second if time column is in iso format"""
+#add to df a column of time in second if time column is in iso format
 def add_time_as_number(df,timename='_time'):
+    """add in Pandas dataframe with time data in iso8601 formata a column with data in seconds 
+    PARAMETERS:
+        df: Pandas dataframe
+        timename: the column name of the iso8601 time data. default: '_time'
+        
+    Returns:
+        The initial dataframe with a new column in last position with time in seconds, called 'time', 
+        where the first value is the time starting point (0.0s) 
+    Raise: 
+        ValueError if the called column does not exist in dataframe
+    
+    """
     if not(timename in df.columns):
-        raise TypeError(timename+' do not exist in the dataframe')
+        raise ValueError(timename+' do not exist in the dataframe')
     timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
     return(pd.concat([df,timenumberdf],axis=1))
     
-"""add to df a column of time in second if time column is in datetime format"""    
+#add to df a column of time in second if time column is in datetime format
 def add_time_as_number2(df,timename='_time'):
+        """add in Pandas dataframe with time data in timestamp formata a column with data in seconds 
+    PARAMETERS:
+        df: Pandas dataframe
+        timename: the column name of the timestamp time data. default: '_time'
+        
+    Returns:
+        The initial dataframe with a new column in last position with time in seconds, called 'time', 
+        where the first value is the time starting point (0.0s) 
+    Raise: 
+        ValueError if the called column does not exist in dataframe
+    
+    """
     if not(timename in df.columns):
-        raise TypeError(timename+' do not exist in the dataframe')
+        raise ValueError(timename+' do not exist in the dataframe')
     timenum=[]
     t0=time_to_num(df[timename].iloc[0])
     for time in df[timename]:
@@ -239,27 +274,26 @@ def max_of_phase(files, path,variables):
 
 
 
-#%%
-"""RESIDUAL HUMIDITY AND t_V/V CURVE"""
+
 
 #%%
     
-"""this function find if there is a changing in the slope of time/volume over volume plot, that should be linear
-   when it's not linear and there is a changing in the slope, i separe the 2 parts of the curve in the linear an the second part
-   i assume that the initial part is linear and then calculate when the slopes diverge fron the initial one"""
-"""non corretto"""
-
-def t_V_over_V_slopes(time,volume,starting_points=200,slope_points=20,limit=2):
-    t_v=np.array(time/volume)[1:]
-    volume=volume[1:]
-    start_slope=sp.stats.linregress(volume[:starting_points],t_v[:starting_points])[0] #i calculate the starting slope of the curve assuming is linear  
-    for i in range(200,len(t_v)-20):
-        slope=sp.stats.linregress(volume[i:i+slope_points],t_v[i:i+slope_points])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
-        if slope/start_slope>limit:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
-            #print("the changing of slope occours in position",i)
-            return i
-    #print("no change of slope")
-    return 0 #if there is no significative change of slope return 0
+#"""this function find if there is a changing in the slope of time/volume over volume plot, that should be linear
+#   when it's not linear and there is a changing in the slope, i separe the 2 parts of the curve in the linear an the second part
+#   i assume that the initial part is linear and then calculate when the slopes diverge fron the initial one"""
+#"""non corretto"""
+#
+#def t_V_over_V_slopes(time,volume,starting_points=200,slope_points=20,limit=2):
+#    t_v=np.array(time/volume)[1:]
+#    volume=volume[1:]
+#    start_slope=sp.stats.linregress(volume[:starting_points],t_v[:starting_points])[0] #i calculate the starting slope of the curve assuming is linear  
+#    for i in range(200,len(t_v)-20):
+#        slope=sp.stats.linregress(volume[i:i+slope_points],t_v[i:i+slope_points])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
+#        if slope/start_slope>limit:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
+#            #print("the changing of slope occours in position",i)
+#            return i
+#    #print("no change of slope")
+#    return 0 #if there is no significative change of slope return 0
 
 #%%
 """i want that the derivate is null for a while, so i check if the next n=20 points have derivate very little (<0.01)"""
@@ -286,12 +320,12 @@ def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
     print("pressure not constant")
     return 0
 #%%
+
+   
+def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,slope_points=20,figure=False,savefig=False):
 """calculate the parameters of a inear regression of time/volume over volume
    in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true
    if there is a change in the slope i find the changing point for each cycle"""
-   
-def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,slope_points=20,figure=False,savefig=False):
-
     slopes=[]
     intercepts=[]
     err=[]
