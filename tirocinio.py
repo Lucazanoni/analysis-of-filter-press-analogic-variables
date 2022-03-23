@@ -161,12 +161,19 @@ def take_datetime(df,timename='_time'):
     date=pd.DataFrame({'time':dates})
     return date
 
-"""add in datadfame a column with time from iso 8601 data"""
+
 def timefromiso(dataiso):
+    """function to elaborate iso8601 time format, useful for other functions"""
     return datetime.fromisoformat(dataiso[:-1])
 
 """trasforma orario formato hh,mm,ss,micros in secondi """
 def time_to_num(t):
+    """return the number of seconds in TimeStamp object
+    Parameter:
+        t: TimeStamp object 
+    Return:
+        number of seconds in t as float
+    """ 
     return t.timestamp()#+t.microseconds*10**(-6)
     
 #add to df a column of time in second if time column is in iso format
