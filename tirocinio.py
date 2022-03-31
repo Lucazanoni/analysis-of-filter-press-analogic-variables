@@ -58,6 +58,29 @@ cicli_da_escludere=[70,72,74,76,78,81,85,94,108,119,144,146,147,148,149,155,156,
 
 #%%
 
+def change_global_names(density='Analogs.analog22',flow='Analogs.analog1',pressure='Analogs.analog3'):
+    """
+    This function create 3 global variables (analogflow,analogpressure,analogdensity) with the name of the variables 
+    used in the dataframe.  
+    Parameters:
+        density: string with the name of the pressure in the Dataframe. Default: 'Analogs.analog22'
+        flow: string with the name of the flow in the Dataframe. Default: 'Analogs.analog1'
+        pressure: string with the name of the pressure in the Dataframe. Default: 'Analogs.analog3'
+    Return:
+        Create (or replace) 3 global variables called analogflow, analogpressure and analogdensity that are strings
+    """
+    
+    analogflow='analogflow'
+    analogpressure='analogpressure'
+    analogdensity='analogdensity'
+    globals()[analogflow]=flow
+    globals()[analogdensity]=density
+    globals()[analogpressure]=pressure
+
+
+
+#%%
+
 def extract_bson_files_from_zip(zip_path,destination_path):
     """ EXTRACT ZIP FILES
         
@@ -76,15 +99,33 @@ def extract_bson_files_from_zip(zip_path,destination_path):
 #%%
 """READING AND OPENING FILES JSON AND BSON"""
 
-"""read all the filenames in the given path and return the list of filenames""" 
+
 def read_json_names(path):
+    
+    """
+    Read the name of json files in a given directory
+    Parameter:
+        path: string of path of a given directory
+    return:
+        list of strings of json files in directory""" 
     files=[]
     os.chdir(path)
     for file in glob.glob("*.json"):
         files.append(file)
     return files
-"""create a global dataframe (pandas) for each json file read"""
+
 def json_file_to_df(filenames, path):
+    
+    """
+    Create a global Pandas DataFrame for each json file read
+    
+    Parameters:
+        filenames: list of strings of json files
+        path: string of the path of a given directory
+    returns:
+        creates global pandas DataFrames of the json files names present in filenames exixting in directory selected
+    
+    """
     os.chdir(path)
     for file in filenames:
         file1=file[33:-5]
@@ -93,14 +134,33 @@ def json_file_to_df(filenames, path):
         file1=file1.replace(")","")
         globals()[file1]=pd.read_json(file)
         
-def read_json_files(name,path):
-    with open(path+'/'+name) as json_file:
-        return json.load(json_file)
+#def read_json_files(name,path):
+#    """
+#    Read the json files in a directory
+#    
+#    Parameters:
+#        name: string conteining the json file name
+#        path: string of the path of a given directory
+#        
+#    return
+#    """
+#    with open(path+'/'+name) as json_file:
+#        return json.load(json_file)
 
-"""create a variable for phase of interst with the name of all the file of that phase """
-"""number of phases=array with the numbers of the phases of interest"""
-"""example:  make_bson_list_for_phase(path_prova,[1,2,3])"""
+
 def make_bson_list_for_phase(path,numbers_of_phases):
+#example:  make_bson_list_for_phase(path_prova,[1,2,3])
+    """
+    Create a global list of strings for each phase of interst with the name of all the bson files of that phase.
+    The phase of each file should be in the name of the file. Ex: 'AQS_cycle20_phase5.bson', where the phase is 'phase5' in this case
+
+    
+    Parameters:
+        path: string of the path of a given directory
+        number of phase: array containing the phases of interest. Ex: [1,2,3,5]
+    Return: 
+        a global list with the names (strings) of all bson files in selected directory for each phase of interest.   
+    """
     files=[]
     os.chdir(path)
     for file in glob.glob("*.bson"):
@@ -111,15 +171,44 @@ def make_bson_list_for_phase(path,numbers_of_phases):
             if ('phase'+str(i)) in file:
                 names.append(file)
         globals()['phase'+str(i)]=names
-"""generate a dataframe pandas from bson file"""    
+
+
+
 def df_from_bson(filename,path):
+    """
+    Create a Pandas DataFrame from bson file
+    
+    Parameters:
+        filename: name (string) of the bson file 
+        path: string of the path of a given directory
+    return:
+        df: Pandas DataFrame of the starting bson file
+    
+    """    
     with open(path+'/'+filename, "rb") as rf:
         data = bson.decode(rf.read())
     df=pd.DataFrame(data[list(data)[0]])
     df.dropna(subset = ['timestamp'], inplace=True)
     return df
-"""generate a dataframe pandas from bson file for phase variable, in whing there are 2 db, one with analogs and another with phase"""
+
+
+
+#generate a dataframe pandas from bson file for phase variable, in whing there are 2 db, one with analogs and another with phase
 def df_from_phase_bson(filename, path):
+    """
+    Create 2 Pandas DataFrames from bson file of phase variable. The phase bson files provided has 2 different dataframe in same file,
+    so it is necessary to separe them for the differen use of the variables
+    
+    Parameters:
+        filename: name (string) of the bson file 
+        path: string of the path of a given directory
+    return:
+        df: Pandas DataFrame of the "normal/analog" variables of bson file
+        df_phase: Pandas DataFrame of the "phase" variables of bson file
+    
+    """   
+    
+    
     with open(path+'/'+filename, "rb") as rf:
         data = bson.decode(rf.read())
     df=pd.DataFrame(data[list(data)[0]])
@@ -129,8 +218,22 @@ def df_from_phase_bson(filename, path):
     return df,df_phase                
    
     
-"""select all file in path that has a certain number in position 9-10, like AQS_cycle62_phase2.... has number 62"""
+
 def cycle_list_file(n_cycle,path):
+    """
+    Create a list of names of all file in a certain directory that has a certain number in position 9-10.
+    For example:  'AQS_cycle62_phase2.bson' has number 62
+    Useful for selecting the cycles of interest
+    
+    Parameters:
+        n_cycle: int of number of cycle. It must be a number between 10 and 99 ( 2 digit)
+        path:string of the path of the directory where the files are
+    
+    Returns: 
+        names: list of strings of the files with 'n_cycle' in position 9-10 of the name in the selected directory    
+    
+    
+    """
     files=[]
     os.chdir(path)
     for file in glob.glob("*.bson"):
@@ -142,7 +245,7 @@ def cycle_list_file(n_cycle,path):
     return names       
 #%%            
             
-"""TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT"""
+#TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT
 
 def take_datetime(df,timename='_time'):
     """add in Pandas dataframe with time data in iso8601 formata a column with data in datastamp format 
@@ -166,7 +269,7 @@ def timefromiso(dataiso):
     """function to elaborate iso8601 time format, useful for other functions"""
     return datetime.fromisoformat(dataiso[:-1])
 
-"""trasforma orario formato hh,mm,ss,micros in secondi """
+#trasforma orario formato hh,mm,ss,micros in secondi 
 def time_to_num(t):
     """return the number of seconds in TimeStamp object
     Parameter:
@@ -197,8 +300,9 @@ def add_time_as_number(df,timename='_time'):
     
 #add to df a column of time in second if time column is in datetime format
 def add_time_as_number2(df,timename='_time'):
-        """add in Pandas dataframe with time data in timestamp formata a column with data in seconds 
-    PARAMETERS:
+    """
+    Add in Pandas DataFrame with time data in timestamp formata a column with data in seconds 
+    Parameters:
         df: Pandas dataframe
         timename: the column name of the timestamp time data. default: '_time'
         
@@ -220,92 +324,143 @@ def add_time_as_number2(df,timename='_time'):
 
 
 def numbers_from_time(df,timename='_time'):
+    """
+    Transfom the column of Dataframe referred to time in timestamp format in seconds
+    Parameters:
+        df: the Pandas DataFrame which has the time column to transform in seconds
+        timename: string of the name of the time column. Default: '_time' 
+    Returns:
+        array of float containing the element of df[timename] transformed in seconds 
+    Raise: 
+        VauleError if df[timename] does not exist
+    """
     timenum=[]
     if not(timename in df.columns):
-        raise TypeError(timename+' do not exist in the dataframe')
+        raise ValueError(timename+' do not exist in the dataframe')
     
     t0=time_to_num(timefromiso(df[timename][0]))
     for time in df[timename]:
         t=timefromiso(time)
         timenum.append(time_to_num(t)-t0)
     return (np.array(timenum))
-"""add to df a column of time as timeseries """
+
 def add_time_as_timeseries(df,timename='timestamp'):
+    """
+    Add in Pandas DataFrame with time data in iso8601 a column with data in timestamp format
+    Parameters:
+        df: Pandas dataframe which has the time column in iso8601
+        timename: the column name of the timestamp time data. default: 'timestamp'
+        
+    Returns:
+        The initial dataframe with a new column in last position with time in seconds, called 'timeserie', 
+        where the first value is the time starting point (0.0s) 
+
+    """
     timeserie=[]
     for time in df[timename]:
         timeserie.append(timefromiso(time))
     timeserie=pd.DataFrame({'timeserie':timeserie})
     return pd.concat([df,timeserie],axis=1)
 #%%            
-"""take the max of a certain phase of each cycle for each of the variable of interest"""
-def max_of_phase(files, path,variables):
-    x=np.zeros([len(files),len(variables)])
-    time=[]
-    j=0
-    for file in files:
-        x1=np.zeros(len(variables))
-        df,df_phase=df_from_phase_bson(file, path)
-        i=0
-        for var in variables:
-            x1[i]=max(np.array(df_phase[var]))
-            i=i+1
-        x[j,:]=x1
-        df_phase=add_time_as_timeseries(df_phase)
-        time.append(df_phase['timeserie'][len(df_phase)-1])
-        j=j+1
-    sorted_index = np.argsort(time)
-    x1=np.zeros([len(files),len(variables)])
-    time = [time[i] for i in sorted_index]
-    j=0
-    for i in sorted_index:
-        x1[j,:]=x[i,:]
-        j=j+1
-    return x1,time
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#take the max of a certain phase of each cycle for each of the variable of interest
+#def max_of_phase(files, path,variables):
+#    
+#    x=np.zeros([len(files),len(variables)])
+#    time=[]
+#    j=0
+#    for file in files:
+#        x1=np.zeros(len(variables))
+#        df,df_phase=df_from_phase_bson(file, path)
+#        i=0
+#        for var in variables:
+#            x1[i]=max(np.array(df_phase[var]))
+#            i=i+1
+#        x[j,:]=x1
+#        df_phase=add_time_as_timeseries(df_phase)
+#        time.append(df_phase['timeserie'][len(df_phase)-1])
+#        j=j+1
+#    sorted_index = np.argsort(time)
+#    x1=np.zeros([len(files),len(variables)])
+#    time = [time[i] for i in sorted_index]
+#    j=0
+#    for i in sorted_index:
+#        x1[j,:]=x[i,:]
+#        j=j+1
+#    return x1,time
+#
+#
 
 
 #%%
     
-#"""this function find if there is a changing in the slope of time/volume over volume plot, that should be linear
-#   when it's not linear and there is a changing in the slope, i separe the 2 parts of the curve in the linear an the second part
-#   i assume that the initial part is linear and then calculate when the slopes diverge fron the initial one"""
-#"""non corretto"""
-#
-#def t_V_over_V_slopes(time,volume,starting_points=200,slope_points=20,limit=2):
-#    t_v=np.array(time/volume)[1:]
-#    volume=volume[1:]
-#    start_slope=sp.stats.linregress(volume[:starting_points],t_v[:starting_points])[0] #i calculate the starting slope of the curve assuming is linear  
-#    for i in range(200,len(t_v)-20):
-#        slope=sp.stats.linregress(volume[i:i+slope_points],t_v[i:i+slope_points])[0] #i calculate each point the slope of the next 20 points to avoid fluctuation
-#        if slope/start_slope>limit:                                  # if the slope of next points are over the double of starting slopes, i break the curve 
-#            #print("the changing of slope occours in position",i)
-#            return i
-#    #print("no change of slope")
-#    return 0 #if there is no significative change of slope return 0
+
+
+
+def t_V_over_V_slopes(time,volume,starting_points=200,slope_points=20,limit=2):
+    """
+    This function find if there is a changing in the slope of time/volume over volume plot, that should be linear.
+    When it's not linear and there is a changing in the slope, the 2 parts of the curve are separated in the linear and the second part.
+    The assumption is that the initial part is linear and then calculate when the slopes diverge fron the initial one.
+    
+    Parameters:
+        time: array of float containing the times at which each measure of slurry volume is collected
+        volume: array of float of the measured volume of slurry
+        starting_points: number (integer) of points used to determine the starting slope of the curve. the index of first point is always 0, 
+                         so the firsts starting_points points will be used for the calculation of the slope of the linear part of the curve.
+                         Default=200
+        slope_points: integer number fo points used to evaluate the slope of the curve after the first starting_points points. The slope is
+                      not the tanget of the 'time/volume over volume' curve but a mean to avoid that fluctuations can misrepresent the result.
+                      Default=20
+        limit: float of limit ratio between the starting slope and the slope calculated in succesive points. if the ratio is bigger than limit,
+               the point in which that happens is consider the changing slope point. 
+               Default=2
+    
+    Returns:
+        if there is a change in the slope of 'time/volume over volume' curve, the index point in which that happens is returned. Otherwise,
+        it is returned 0.
+    
+    
+    """
+    t_v=np.array(time/volume)[1:]
+    volume=volume[1:]
+    #i calculate the starting slope of the curve assuming is linear
+    start_slope=sp.stats.linregress(volume[:starting_points],t_v[:starting_points])[0]  
+    for i in range(200,len(t_v)-20):
+        #i calculate each point the slope of the next 20 points to avoid fluctuation
+        slope=sp.stats.linregress(volume[i:i+slope_points],t_v[i:i+slope_points])[0] 
+        
+        if slope/start_slope>limit:                                  
+            # if the slope of next points are over the double of starting slopes, i break the curve 
+            #print("the changing of slope occours in position",i)
+            return i
+    #print("no change of slope")
+    return 0 
+    #if there is no significative change of slope return 0
 
 #%%
-"""i want that the derivate is null for a while, so i check if the next n=20 points have derivate very little (<0.01)"""
+#i want that the derivate of pressure is null for a while, so i check if the next n=20 points have derivate very little (<0.01)
 def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
-
+    """
+    This function finds the pressure value after which the pressure can be considered almost constant, considering fluctuations, 
+    after reaching the flow rate desired. It uses the derivative of the pressure and consider when it's almost  null (<0.01)
+    for a certain number of point.
+    It can also show the point find plotting the graph of pressure and remarking the point found with a red dot
+    
+    Parameters:
+        pressure: array or list of float, conteining the sequence of measured pressures 
+        time: array or list of float, containing the times at which each pressure point is register. 
+              len(pressure) should be equal to len(time)
+        p_range: float. the distance from maximum value of pressure in which i search a region of pressure constant.
+                 This is done because in some points of the curve there can be some region 
+                 of constant pressure before arriving to the desired range of pressure, that should be near the maximum.
+                 Default=0.5
+        n_limit: integer number of consecutive points that should have simultaneusly derivative <0.01 to define the pressure is constant
+                 Default=20
+        figure: boolean. True to plot pressure and point of starting constant pressure, False otherwise
+                Default=False
+              
+    
+    """
     derivate=np.gradient(pressure,time)
     counter=False
     for i in range(len(pressure)-n_limit):
@@ -328,11 +483,20 @@ def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
     return 0
 #%%
 
+   #da fare
+def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,slope_points=20,figure=False):
+    """
+    This function calculate the parameters of the linear regression of time/volume- volume curve in the linear part (phase 3)
+    It does t for all the target files in a directory and join the result
+    in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 of the cycles it is true
+    if there is a change in the slope the function the changing point for each cycle.
+    It can also 
+    
    
-def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,slope_points=20,figure=False,savefig=False):
-"""calculate the parameters of a inear regression of time/volume over volume
-   in theory this relation should be linear if the pressure is constant, and after few seconds in phase 3 othe cycles it is true
-   if there is a change in the slope i find the changing point for each cycle"""
+   
+   
+   
+    """
     slopes=[]
     intercepts=[]
     err=[]
@@ -363,7 +527,7 @@ def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,sl
         index=t_V_over_V_slopes(time,volume,slope_points=slope_points,limit=slope_limit,starting_points=starting_points)   #find the index in which the curve is not linear anymore, if exist   
         indices.append(index)
         
-        if figure:
+        if figure: 
             if index!=0:
                 plt.figure()
                 plt.scatter(volume[:index],t_V[:index],marker='.')#c=df['Time number'][res:res+i])
@@ -389,10 +553,7 @@ def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,sl
 #            plt.plot(x,intercept+slope*x,linestyle='--')
             plt.xlabel('V   m3')
             plt.ylabel('t/V     s m^(-3)')
-            if (savefig):
-                plt.savefig(fname="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/limit=2/figure_"+str(i)+".png")
-                plt.close()
-
+            
             
         slopes.append(slope)
         intercepts.append(intercept)
@@ -404,6 +565,18 @@ def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,sl
 #%%
 
 def slopes_time_volume_over_volume(flows,times):
+    """
+    This function calculate the derivative of the curve time/volume-volume starting from instant flows and time.
+    It's used to find the change of slope in the curve
+    
+    Parameters:
+        flows: array of double containing the the measured flows
+        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+    
+    Return:
+        array of double containing the gradient of the curve time/volume-volume
+    """
+    
     times=times-times[0]
     volume=volume_from_flow(flows,times)
     t_V=np.array(times[1:])/np.array(volume[1:])
@@ -412,41 +585,64 @@ def slopes_time_volume_over_volume(flows,times):
 
 
 #%%
-def specific_cake_resistances(filenames,path,solid_density=2.65746,liquid_density=1.):
-    alpha=[] 
-    """the specific cake resistance per m2 when the pressure is almost constant"""
-    x=time_volume_over_volume(filenames,path)
-    err=x[2]
-    slopes=x[0]
-    rel_slope_err=np.array(err)/np.array(slopes) 
-    """relative error of slopes"""
-    solid_con=solid_concentrations( filenames,path)
-    mean_pressure=[]
-    err_pressure=[]
-    for file in filenames:        
-        df,df_phase=df_from_phase_bson(file,path)
-        limit=max(np.array(df_phase['PhaseVars.phaseVariable4']))-1
-        res = next(x for x, val in enumerate(df[analogpressure]) if val > limit)
-        res2 = next(x for x, val in enumerate(df[analogpressure][res:]) if val <limit-2 )
-        mean_pressure.append(np.mean(np.array(df[analogpressure])[res:res2]))
-        err_pressure.append(np.std(np.array(df[analogpressure])[res:res2]))
-    rel_press_err=np.array(err_pressure)/np.array(mean_pressure) 
-    """relative error of pressure"""
-    rel_err=rel_slope_err+rel_press_err
-    alpha=np.array(slopes)*np.array(mean_pressure)/np.array(solid_con)
-    alpha_err=rel_err*alpha
-    return alpha,alpha_err
-
-
+#def specific_cake_resistances(filenames,path,solid_density=2.65746,liquid_density=1.):
+#    """
+#    This function calculate the specific resistance of the cake during his formation in phase 3.  
+#    
+#    
+#    
+#    alpha=[] 
+#    #the specific cake resistance per m2 when the pressure is almost constant"""
+#    x=time_volume_over_volume(filenames,path)
+#    err=x[2]
+#    slopes=x[0]
+#    rel_slope_err=np.array(err)/np.array(slopes) 
+#    """relative error of slopes"""
+#    solid_con=solid_concentrations( filenames,path)
+#    mean_pressure=[]
+#    err_pressure=[]
+#    for file in filenames:        
+#        df,df_phase=df_from_phase_bson(file,path)
+#        limit=max(np.array(df_phase['PhaseVars.phaseVariable4']))-1
+#        res = next(x for x, val in enumerate(df[analogpressure]) if val > limit)
+#        res2 = next(x for x, val in enumerate(df[analogpressure][res:]) if val <limit-2 )
+#        mean_pressure.append(np.mean(np.array(df[analogpressure])[res:res2]))
+#        err_pressure.append(np.std(np.array(df[analogpressure])[res:res2]))
+#    rel_press_err=np.array(err_pressure)/np.array(mean_pressure) 
+#    """relative error of pressure"""
+#    rel_err=rel_slope_err+rel_press_err
+#    alpha=np.array(slopes)*np.array(mean_pressure)/np.array(solid_con)
+#    alpha_err=rel_err*alpha
+#    return alpha,alpha_err
+#
+#
 
 #%%
     
-"""here i calculate the residual humidity, that is the mass of H2O residual in the cake"""
-"""i have only solid density, slurry density, liquid density and slurry volume"""
+#here i calculate the residual humidity, that is the mass of H2O residual in the cake
+#i have only solid density, slurry density, liquid density and slurry volume
 
 
-def residual_humidity_over_time(flow,time,slurry_density,figure=False,liquid_density=1.,final_volume=10.8768):
-    solid_density=2.65746
+def residual_humidity_over_time(flow,time,slurry_density,figure=False,liquid_density=1.,final_volume=10.8768,solid_density=2.65746):
+    """
+    This function calculate the residual humidity, i.e. the residual mass of water in the cake, during the formation of the cake.
+    Parameter:
+        flow: array of double containing the instant flows
+        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        slurry_density: array of double containing the instant densities of the slurry or double containing the mean value
+        figure: boolean, True for plotting the changing of residual humidity during the time, False otherwise. Default: False
+        liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
+        final_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
+        solid_density: approximate mean density of the solid part of the slurry. Default:2.65746
+        
+    Return: 
+        Array of double containing the residual humidity from the time in which the slurry volume pumped is major than final_volume. the
+        lenght of this array is variable. 
+        if Figure==True, it will also plotted the array in function of time
+    """
+    
+    
+    
     pumped_volume=np.array(volume_from_flow(flow,time))
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
     num=(1-solid_concentration)*(pumped_volume*slurry_density)-(pumped_volume-final_volume)*liquid_density
@@ -460,29 +656,52 @@ def residual_humidity_over_time(flow,time,slurry_density,figure=False,liquid_den
 
 
    
-def final_residual_humidity(pumped_volume,slurry_density,liquid_density=1.,final_volume=10.8768):
-    solid_density=2.65746
+def final_residual_humidity(pumped_volume,slurry_density,liquid_density=1.,final_volume=10.8768,solid_density=2.65746):
+    """
+    This function calculate the residual humidity, i.e. the residual mass of water in the cake, at the end of the the process.
+    Parameters:
+        pumperd_volume: double, the total volume of the slurry pumped
+        slurry_density: double containing the mean value of the density of slurry
+        liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
+        final_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
+        solid_density: approximate mean density of the solid part of the slurry. Default:2.65746
+    
+    Return: double,  the value of residual humidity at the end of the process
+    
+    """
+    
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
     return (((1-solid_concentration)*pumped_volume*slurry_density-(pumped_volume-final_volume)*liquid_density)/(pumped_volume*slurry_density
            -liquid_density*(pumped_volume-final_volume)))
 
-"""density of the cake"""
-def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volume=10.8768):
-    solid_density=2.65746
+#density of the cake
+def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volume=10.8768,solid_density=2.65746):
+    """
+    This function calculate the density of the cake during his formation.
+    Parameters:
+        slurry_density: array of double containing the instant densities of the slurry or double containing the mean value
+        flow: array of double containing the instant flows
+        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
+        final_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
+        solid_density: approximate mean density of the solid part of the slurry. Default:2.65746
+    
+    Return: array of double containing the density of the cake during his formation, from time[1] to his final value 
+    """
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
     pumped_volume=volume_from_flow(flow,time)
-    final_volume=10.8768
+
     cake_density=np.array(pumped_volume)*solid_concentration*slurry_density/final_volume
     return cake_density
 #%%
-def solid_concentrations(filenames,path,solid_density=2.65746,liquid_density=1.):
-    solid_concentrations=[]
-    for file in filenames:
-        df,df_phase=df_from_phase_bson(file,path)
-        slurry_density=np.mean(np.array(df[analogdensity]))
-        solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
-        solid_concentrations.append(solid_concentration)
-    return solid_concentrations
+#def solid_concentrations(filenames,path,solid_density=2.65746,liquid_density=1.):
+#    solid_concentrations=[]
+#    for file in filenames:
+#        df,df_phase=df_from_phase_bson(file,path)
+#        slurry_density=np.mean(np.array(df[analogdensity]))
+#        solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
+#        solid_concentrations.append(solid_concentration)
+#    return solid_concentrations
 #%%
 #
 #def all_final_humidity(filenames,path):
@@ -494,7 +713,30 @@ def solid_concentrations(filenames,path,solid_density=2.65746,liquid_density=1.)
 #    return liquid_concentrations
     #%%
 #we should mean the slurry density
-def all_final_residual_humidity(phase2,phase3,cycle_name=False,errorbar=False,figure=False):
+"""NON SO SE METTERLA"""   
+    
+    
+    
+    
+    
+def all_final_residual_humidity(phase2,phase3,path1, cycle_name=False,errorbar=False,figure=False):
+    """
+    This function calculate the residual humidity, i.e. the residual mass of water in the cake, at the end of a cycle
+    for all the cycles selected and can plot them with their error. It requires the phase 2 and phase 3 of each cycle  
+    with all the measured variables. It can also plot the results with or without the errorbar.
+    
+    Parameters:
+        phase2: list of names (as strings) of the files corrisponding to phase 2 of the cycles.  
+        phase3: list of names (as strings) of the files corrisponding to phase 3 of the cycles. 
+                length of phase3 must be equal to the one of phase2 and files of same cycle should be at same index in phase2 and phase3
+        path1: string with path of directory where the files are
+        cycle_name: 
+    
+    
+    
+    """
+    
+    
     final_liquid_concentration=[]
     cycle=[]
     error_bar=[]
@@ -543,92 +785,118 @@ def all_final_residual_humidity(phase2,phase3,cycle_name=False,errorbar=False,fi
 
 
 #%%
-"""i want to correlate the slope of the curve time-volume over volume with the residual humidity"""
-"""non correttissima sulla creazione delle figure, da correggere se mi servirà"""
-def plot_tV_V_slope_and_humidity(df_phase2,df_phase3,plot_figure=False,savefigure=False):
-        """df_phase2 is the df of analogs in phase2, df_phase3 is the df of analogs in phase 3"""
+#"""i want to correlate the slope of the curve time-volume over volume with the residual humidity"""
+#"""non correttissima sulla creazione delle figure, da correggere se mi servirà"""
     
-        flow=np.zeros(len(df_phase2)+len(df_phase3))
-        time=np.zeros(len(df_phase2)+len(df_phase3))        
-        date=list(add_time_as_timeseries(df_phase2)['timeserie'])
-        date.extend(add_time_as_timeseries(df_phase3)['timeserie'])
-        flow[:len(df_phase2)]=np.array(df_phase2[analogflow])
-        flow[len(df_phase2):]=np.array(df_phase3[analogflow])
-        t0=time_to_num(date[0])
-        i=0
-        for t in date:
-            time[i]=time_to_num(t)-t0
-            i=i+1
-        density=np.zeros(len(df_phase2)+len(df_phase3))
-        density[:len(df_phase2)]=np.array(df_phase2[analogdensity])
-        density[len(df_phase2):]=np.array(df_phase3[analogdensity])
-        mean_density=np.mean(density)
-        residual_humidity=residual_humidity_over_time(flow,time,mean_density,figure=False)
-        limit=max(np.array(df_phase3[analogpressure]))-.5   #limit after that i consider constant the pressure
-        res = next(x for x, val in enumerate(df_phase3[analogdensity]) if val > limit)
-        
-        #res2 = next(x for x, val in enumerate(df['Analogs.analog3'][res:]) if val <limit-2 )
-        res=res+len(df_phase2)
-        #res2=res2+len(df_phase2)
-        vol=volume_from_flow(flow,time) 
-        vol_index=next(x for x, val in enumerate(vol) if val > 10.8768)  #index which before the pumped volume is less than the filter volume
-                                                                        # and so the formula is not valid
 
-        #density=np.mean(density)
-        solid_concentration=2.65746*(1-mean_density)/(mean_density*(1-2.65746))
-        
-        volume=volume_from_flow(flow[res:-5],time[res:-5])
-        t_V=(time[res+1:-5]-time[res])/volume[1:] #i calculate t/V
-        
-        """ slope of t_V over V in function of humidity"""
-        #the first 200 points in the reagion of constant pressure are used to define the starting slope, 
-        #we then compute the derivate for next slopes
-        
-        slopes=np.gradient(t_V,volume[1:])
-        date1=date[-1].strftime("%Y-%m-%d-%H-%M")
-       
-        if plot_figure:
-            plt.axhline(y=0.2,color='red',linestyle='-.')
-            plt.scatter(slopes,(residual_humidity[res+1:-5]))
-            plt.xlabel('log(slope t_V over V)')
-            plt.ylabel('residual humidity')
-            path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/immagini_prova"
-            if savefigure:
-                plt.savefig(path+'/slope-hum-'+date1+'.png')
-                plt.close()
-        
-        """alpha and humidity"""
-        
-        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
-        alpha=slopes*mean_pressure/solid_concentration#[res+1:-5]
-        if plot_figure:
-            plt.figure()
-            plt.scatter(alpha,residual_humidity[res+1:-5])
-            plt.xlabel('alpha')
-            plt.ylabel('residual humidity')
-            plt.axhline(y=0.2,color='red',linestyle='-.')
-            if savefigure:
-                plt.savefig(fname=path+'/alfa-hum-'+date1+'.png')
-                plt.close()
+"""QUESTA LA METTA A COOMENTO PERO' POTREI GUARDARCI"""
 
-        
-        
-        """plotting t_v over V and residual humidity over time"""
-        if plot_figure:
 
-            fig,ax=plt.subplots(2,1)
-            fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
-            ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
-            #ax[0].axvline(x=date[vol_index])
-            ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
-            if savefigure:
-                fig.savefig(fname=path+'/t_V over V-hum- '+date1+'.png')
-                plt.close()  
+#def plot_tV_V_slope_and_humidity(df_phase2,df_phase3,plot_figure=False,savefigure=False):
+##df_phase2 is the df of analogs in phase2, df_phase3 is the df of analogs in phase 3"""
+#    
+#        flow=np.zeros(len(df_phase2)+len(df_phase3))
+#        time=np.zeros(len(df_phase2)+len(df_phase3))        
+#        date=list(add_time_as_timeseries(df_phase2)['timeserie'])
+#        date.extend(add_time_as_timeseries(df_phase3)['timeserie'])
+#        flow[:len(df_phase2)]=np.array(df_phase2[analogflow])
+#        flow[len(df_phase2):]=np.array(df_phase3[analogflow])
+#        t0=time_to_num(date[0])
+#        i=0
+#        for t in date:
+#            time[i]=time_to_num(t)-t0
+#            i=i+1
+#        density=np.zeros(len(df_phase2)+len(df_phase3))
+#        density[:len(df_phase2)]=np.array(df_phase2[analogdensity])
+#        density[len(df_phase2):]=np.array(df_phase3[analogdensity])
+#        mean_density=np.mean(density)
+#        residual_humidity=residual_humidity_over_time(flow,time,mean_density,figure=False)
+#        limit=max(np.array(df_phase3[analogpressure]))-.5   #limit after that i consider constant the pressure
+#        res = next(x for x, val in enumerate(df_phase3[analogdensity]) if val > limit)
+#        
+#        #res2 = next(x for x, val in enumerate(df['Analogs.analog3'][res:]) if val <limit-2 )
+#        res=res+len(df_phase2)
+#        #res2=res2+len(df_phase2)
+#        vol=volume_from_flow(flow,time) 
+#        vol_index=next(x for x, val in enumerate(vol) if val > 10.8768)  #index which before the pumped volume is less than the filter volume
+#                                                                        # and so the formula is not valid
+#
+#        #density=np.mean(density)
+#        solid_concentration=2.65746*(1-mean_density)/(mean_density*(1-2.65746))
+#        
+#        volume=volume_from_flow(flow[res:-5],time[res:-5])
+#        t_V=(time[res+1:-5]-time[res])/volume[1:] #i calculate t/V
+#        
+#        """ slope of t_V over V in function of humidity"""
+#        #the first 200 points in the reagion of constant pressure are used to define the starting slope, 
+#        #we then compute the derivate for next slopes
+#        
+#        slopes=np.gradient(t_V,volume[1:])
+#        date1=date[-1].strftime("%Y-%m-%d-%H-%M")
+#       
+#        if plot_figure:
+#            plt.axhline(y=0.2,color='red',linestyle='-.')
+#            plt.scatter(slopes,(residual_humidity[res+1:-5]))
+#            plt.xlabel('log(slope t_V over V)')
+#            plt.ylabel('residual humidity')
+#            path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/immagini_prova"
+#            if savefigure:
+#                plt.savefig(path+'/slope-hum-'+date1+'.png')
+#                plt.close()
+#        
+#        """alpha and humidity"""
+#        
+#        mean_pressure=np.mean(np.array(df_phase3['Analogs.analog3'][res:-5]))
+#        alpha=slopes*mean_pressure/solid_concentration#[res+1:-5]
+#        if plot_figure:
+#            plt.figure()
+#            plt.scatter(alpha,residual_humidity[res+1:-5])
+#            plt.xlabel('alpha')
+#            plt.ylabel('residual humidity')
+#            plt.axhline(y=0.2,color='red',linestyle='-.')
+#            if savefigure:
+#                plt.savefig(fname=path+'/alfa-hum-'+date1+'.png')
+#                plt.close()
+#
+#        
+#        
+#        """plotting t_v over V and residual humidity over time"""
+#        if plot_figure:
+#
+#            fig,ax=plt.subplots(2,1)
+#            fig.suptitle("residual humidity = "+str(residual_humidity[-1]),fontsize='10')
+#            ax[0].plot_date(date[vol_index:],residual_humidity[vol_index:],marker='.')
+#            #ax[0].axvline(x=date[vol_index])
+#            ax[1].scatter(volume[1:],t_V,marker='.',c=time[res+1:-5])
+#            if savefigure:
+#                fig.savefig(fname=path+'/t_V over V-hum- '+date1+'.png')
+#                plt.close()  
 
 #%%
                 
 """density should be mean cause the too big fluctuation of the read values"""
 def residual_humidity_of_changing_slope(filenames2,filenames3,path,mean_density=True,solid_density=2.65746,liquid_density=1.):
+    """
+    This function calculate the residual humidity, i.e. the residual mass of water in the cake, in the point of the curve
+    time/volume-volume in which there is the change of slope for all the cycles selected.
+    
+    Parameters:
+        filenames2: list of string of the name of the files of phases 2 of desired cycles.
+        filenames3: list of string of the name of the files of phases 3 of desired cycles. the number of elements of 
+            filenames3 must be equal to the one of filenames2 and files of same cycle should be at same index in filenames2 and filenames3
+        path: string of the path to the directory in which the files are
+        mean_density: boolean. True if the slurry density used is the mean of the istantaneous slurry density measured. False to use all 
+            the istantaneous density measured are used. Default: True
+        solid_density:  solid_density: approximate mean density of the solid component of the slurry. Default:2.65746
+        liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
+    
+    Returns:
+        slope_changing_residual_humidity: array of double containing the residual humidity of each cycle in the point of changing slope
+            the index of each element is the same to the one of the corrisponding cycle in filenames2 nd filenames3 
+        slope_changing_control: array of integer that check for each cycle if there a point of changing slope. The element is 0 if
+            there is no changing of slope in the curve, and the index of changing slope of the corrisponding cycle otherwise. 
+            the indices of this array corrispond to the ones in filenames2 and filenames3 (same indices, same cycle) 
+    """
     slope_changing_residual_humidity=[]
 
     slope_changing_control=np.zeros(len(filenames2))
@@ -673,9 +941,11 @@ def residual_humidity_of_changing_slope(filenames2,filenames3,path,mean_density=
             slope_changing_control[i]=1
     return slope_changing_residual_humidity, slope_changing_control
 #%%
-"""calculate the error of the residual humidity"""
+#calculate the error of the residual humidity
 def residual_humidity_error(slurry_density,delta_slurry,volume,delta_volume,solid_density=2.65746,
                             delta_solid=.9,liquid_density=1.,filter_volume=10.8768):
+    
+    
     #rh=residual_humidity
     sl_d=slurry_density
     d_sl=delta_slurry
@@ -882,204 +1152,124 @@ def density_over_time(files2,files3,path,figure=False):
 
    
 #%%
-
-"""PRELIMINARY AND GENEIRC FUNCTIONS AND SEPARATION IN CYCLES"""
-
-
-
-
-def volume_density_bson(files,path):
-    volume=[]
-    density=[]
-    for file in files:
-        df,df_phase=df_from_phase_bson(file, path)
-        volume.append(max(np.array(df_phase['PhaseVars.phaseVariable6'])))
-        density.append(max(np.array(df_phase['PhaseVars.phaseVariable9'])))
-    plt.scatter(volume,density)
-    return(volume,density)
-def time_density_feeding_bson(files,path):
-    time=[]
-    density=[]
-    finalfeeding=[]
-    initialfeeding=[]
-    for file in files:
-        df,df_phase=df_from_phase_bson(file, path)
-        time.append(max(np.array(df_phase['PhaseVars.phaseVariable1'])))
-        density.append(max(np.array(df_phase['PhaseVars.phaseVariable9'])))
-        finalfeeding.append(max(np.array(df_phase['PhaseVars.phaseVariable3'])))
-        initialfeeding.append(max(np.array(df_phase['PhaseVars.phaseVariable2'])))
-    return(time,initialfeeding,finalfeeding,density)
-
-def selected_time_density(time,density,initialfeeding,finalfeeding,limits_initialfeedig=[200,230],limits_final=[3,10]):
-    d=[]
-    t=[]
-    in_fed=[]
-    fin_fed=[]
-    for i in range(len(time)):
-        if(initialfeeding[i]>=limits_initialfeedig[0] and initialfeeding[i]<=limits_initialfeedig[1] 
-        and finalfeeding[i]>=limits_final[0] and finalfeeding[i]<=limits_final[1]):
-            t.append(time[i])
-            d.append(density[i])
-            in_fed.append(initialfeeding[i])
-            fin_fed.append(finalfeeding[i])
-    x=np.zeros([len(d),4])
-    x[:,0]=t
-    x[:,1]=in_fed
-    x[:,2]=fin_fed
-    x[:,3]=d
-    return x
-"""calculate the daily mean of a cartain variable"""
-def mean_by_day(arr,dates):
-    day=dates[0].day
-    means=[]
-    meanday=[]
-    st_err=[]
-    dates2=[]
-    for i in range(len(dates)):
-        if dates[i].day==day:
-            meanday.append(arr[i])
-        if dates[i].day!=day:
-            means.append(np.mean(meanday))
-            st_err.append(np.std(meanday))
-            meanday=[]
-            meanday.append(arr[i])
-            dates2.append(datetime.datetime(dates[i-1].year,dates[i-1].month,dates[i-1].day))
-            day=dates[i].day
-        if i==(len(dates)-1):
-            means.append(np.mean(meanday))
-            st_err.append(np.std(meanday))
-            dates2.append(datetime.datetime(dates[i].year,dates[i].month,dates[i].day))
-    return means,st_err,dates2
-            
-#%%
-def func(x,a,b):
-    return x*a+b
-
-from scipy.optimize import curve_fit
-#from pylab import *
-def linear_fit(x,y,banderror=False):
-    x=np.array(x)
-    y=np.array(y)
-    popt, pcov = curve_fit(func, x,y)
-    perr=np.sqrt(np.diag(pcov))
-    popt_up=popt+perr
-    popt_dw=popt-perr
-    fit = func(x, *popt)
-    fit_up = func(x, *popt_up)
-    fit_dw = func(x, *popt_dw)
-    fig, ax = plt.subplots(1)
-    plt.scatter(x, y, label='data')
-    
-    sorted_index = np.argsort(x)
-    fit_up = [fit_up[i] for i in sorted_index]
-    fit_dw = [fit_dw[i] for i in sorted_index]
-    plt.plot(x, fit, 'r', lw=2, label='best fit curve')
-    if banderror:
-        ax.fill_between(np.sort(x), fit_up, fit_dw, alpha=.25, label='1-sigma interval')
-    
-    return popt,perr
-
-
-def multiple_linear_regression(x,y):
-    from sklearn.model_selection import train_test_split
-    from sklearn.linear_model import LinearRegression
-    from sklearn.metrics import r2_score
-    from sklearn.metrics import mean_squared_error
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
-    LR = LinearRegression() 
-    LR.fit(x_train,y_train)
-    y_prediction =  LR.predict(x_test)
-    score=r2_score(y_test,y_prediction)
-    print('r2 score is ',score)
-    print('mean_sqrd_error is==',mean_squared_error(y_test,y_prediction))
-    print('root_mean_squared error of is==',np.sqrt(mean_squared_error(y_test,y_prediction)))
-    return LR
+#
+#"""PRELIMINARY AND GENEIRC FUNCTIONS AND SEPARATION IN CYCLES"""
+#
+#
+#
+#
+#def volume_density_bson(files,path):
+#    volume=[]
+#    density=[]
+#    for file in files:
+#        df,df_phase=df_from_phase_bson(file, path)
+#        volume.append(max(np.array(df_phase['PhaseVars.phaseVariable6'])))
+#        density.append(max(np.array(df_phase['PhaseVars.phaseVariable9'])))
+#    plt.scatter(volume,density)
+#    return(volume,density)
+#def time_density_feeding_bson(files,path):
+#    time=[]
+#    density=[]
+#    finalfeeding=[]
+#    initialfeeding=[]
+#    for file in files:
+#        df,df_phase=df_from_phase_bson(file, path)
+#        time.append(max(np.array(df_phase['PhaseVars.phaseVariable1'])))
+#        density.append(max(np.array(df_phase['PhaseVars.phaseVariable9'])))
+#        finalfeeding.append(max(np.array(df_phase['PhaseVars.phaseVariable3'])))
+#        initialfeeding.append(max(np.array(df_phase['PhaseVars.phaseVariable2'])))
+#    return(time,initialfeeding,finalfeeding,density)
+#
+#def selected_time_density(time,density,initialfeeding,finalfeeding,limits_initialfeedig=[200,230],limits_final=[3,10]):
+#    d=[]
+#    t=[]
+#    in_fed=[]
+#    fin_fed=[]
+#    for i in range(len(time)):
+#        if(initialfeeding[i]>=limits_initialfeedig[0] and initialfeeding[i]<=limits_initialfeedig[1] 
+#        and finalfeeding[i]>=limits_final[0] and finalfeeding[i]<=limits_final[1]):
+#            t.append(time[i])
+#            d.append(density[i])
+#            in_fed.append(initialfeeding[i])
+#            fin_fed.append(finalfeeding[i])
+#    x=np.zeros([len(d),4])
+#    x[:,0]=t
+#    x[:,1]=in_fed
+#    x[:,2]=fin_fed
+#    x[:,3]=d
+#    return x
+#"""calculate the daily mean of a cartain variable"""
+#def mean_by_day(arr,dates):
+#    day=dates[0].day
+#    means=[]
+#    meanday=[]
+#    st_err=[]
+#    dates2=[]
+#    for i in range(len(dates)):
+#        if dates[i].day==day:
+#            meanday.append(arr[i])
+#        if dates[i].day!=day:
+#            means.append(np.mean(meanday))
+#            st_err.append(np.std(meanday))
+#            meanday=[]
+#            meanday.append(arr[i])
+#            dates2.append(datetime.datetime(dates[i-1].year,dates[i-1].month,dates[i-1].day))
+#            day=dates[i].day
+#        if i==(len(dates)-1):
+#            means.append(np.mean(meanday))
+#            st_err.append(np.std(meanday))
+#            dates2.append(datetime.datetime(dates[i].year,dates[i].month,dates[i].day))
+#    return means,st_err,dates2
+#            
 
 #%%
-def poly_fit(x,y,deg1=10):
-    z=np.polyfit(x, y,deg1)
-    p=np.poly1d(z)
-    xp = np.linspace(min(x),max(x) , len(y))
-    _ = plt.plot(x, y, '.', xp, p(xp), '-')
-
-    
-"""fitting values of a curve as a*e^(-b*x^c)+d""" 
-def neg_exp(x,a,b,c,d):
-    return a*np.exp(-b*(x**c))+d
-def exp_fit(x,y):
-    x=np.array(x)
-    y=np.array(y)
-    popt, pcov = curve_fit(neg_exp, x,y,p0=[160,0.16,0.5,10])#p0 take from a previous fit with no p0 parameter
-    perr=np.sqrt(np.diag(pcov))
-    fit = neg_exp(x, *popt)
-    plt.scatter(x, y, label='data',marker='.')   
-    plt.plot(x, fit, 'r', lw=2, label='best fit curve')
-    return popt,perr
-
-
-def fitting_values_feeding_law(filenames,path,figure=False):
-    fit_values=[]
-    fit_err=[]
-    for file in filenames:
-        if figure:
-            plt.figure()
-        df,df_phase=df_from_phase_bson(file,path)
-        df=add_time_as_number(df,'timestamp')
-        x=df['Time number']
-        y=df['Analogs.analog1']
-        val,err=exp_fit(x,y)
-        fit_values.append(val)
-        fit_err.append(err)
-    return fit_values,fit_err
-
-#%%
-"""analysis of feeding and pressure in a single phase""" 
-
-def feeding_volume_in_a_phase(phase_file,path):
-    df,df_phase=df_from_phase_bson(phase_file,path)
-    df=add_time_as_number(df[['timestamp','Analogs.analog1']],'timestamp')
-    volume=volume_from_flow(df['Analogs.analog1'],df['Time number'])
-    plt.figure()
-    plt.scatter(volume[20:-5],1/df['Analogs.analog1'][20:-5])
-    
-    
-
-#%%
+#"""analysis of feeding and pressure in a single phase""" 
+#
+#def feeding_volume_in_a_phase(phase_file,path):
+#    df,df_phase=df_from_phase_bson(phase_file,path)
+#    df=add_time_as_number(df[['timestamp','Analogs.analog1']],'timestamp')
+#    volume=volume_from_flow(df['Analogs.analog1'],df['Time number'])
+#    plt.figure()
+#    plt.scatter(volume[20:-5],1/df['Analogs.analog1'][20:-5])
+#    
+#    
+#
+##%%
 
 #mappo le due variabili, se una è il tempo solo variabile tempo, altrimenti faccio x-y, x-t e y-t
-def mapping_var_big_than(df,namevar,namevar2,limit=None,timename='_time',title='correlation time-variables'):
-   if limit==None:
-       df1=df 
-   else:
-       df1=df.loc[df[namevar]>limit]
-   y=df1[namevar]
-   if (namevar2=='_time'):
-       x= numbers_from_time(df1,namevar2)
-       plt.figure()
-       plt.scatter(x, df1[namevar],marker='.')
-   else:
-       time=numbers_from_time(df1,timename)
-       x=df1[namevar2]
-       fig, axs = plt.subplots(2, 2)
-       fig.suptitle(title)
-       axs[0,0].scatter(x, y,marker='.')
-       axs[0,0].set_title(namevar+' - '+namevar2)
-#       plt.xlabel(namevar2)
-#       plt.ylabel(namevar)
+#def mapping_var_big_than(df,namevar,namevar2,limit=None,timename='_time',title='correlation time-variables'):
+#   if limit==None:
+#       df1=df 
+#   else:
+#       df1=df.loc[df[namevar]>limit]
+#   y=df1[namevar]
+#   if (namevar2=='_time'):
+#       x= numbers_from_time(df1,namevar2)
 #       plt.figure()
-       axs[0,1].scatter(time, y,marker='.')
-       axs[0,1].set_title(namevar+' - time')
-#       plt.xlabel('time')
-#       plt.ylabel(namevar)
-#       plt.figure()
-       axs[1,0].scatter(time, x,marker='.')
-       axs[1,0].set_title(namevar2+' - time')
-#       plt.xlabel('time')
-#       plt.ylabel(namevar2)
-##       
-
-
-#%%
+#       plt.scatter(x, df1[namevar],marker='.')
+#   else:
+#       time=numbers_from_time(df1,timename)
+#       x=df1[namevar2]
+#       fig, axs = plt.subplots(2, 2)
+#       fig.suptitle(title)
+#       axs[0,0].scatter(x, y,marker='.')
+#       axs[0,0].set_title(namevar+' - '+namevar2)
+##       plt.xlabel(namevar2)
+##       plt.ylabel(namevar)
+##       plt.figure()
+#       axs[0,1].scatter(time, y,marker='.')
+#       axs[0,1].set_title(namevar+' - time')
+##       plt.xlabel('time')
+##       plt.ylabel(namevar)
+##       plt.figure()
+#       axs[1,0].scatter(time, x,marker='.')
+#       axs[1,0].set_title(namevar2+' - time')
+##       plt.xlabel('time')
+##       plt.ylabel(namevar2)
+###       
+#
+#
+##%%
 
 #calc volume as itegral of flow
 
@@ -1231,219 +1421,6 @@ def final_feeding_delivery_on_pressure(df,indices,limit_pressure):
         if df[pressure_var][j]>limit_pressure:
             return df[feed_var][j-5]
 
-#%%
-"""not mine"""            
-def linear_regression_assumptions(features, label, feature_names=None):
-    """
-    Tests a linear regression on the model to see if assumptions are being met
-    """
-    from sklearn.linear_model import LinearRegression
-    
-    # Setting feature names to x1, x2, x3, etc. if they are not defined
-    if feature_names is None:
-        feature_names = ['X'+str(feature+1) for feature in range(features.shape[1])]
-    
-    print('Fitting linear regression')
-    # Multi-threading if the dataset is a size where doing so is beneficial
-    if features.shape[0] < 100000:
-        model = LinearRegression(n_jobs=-1)
-    else:
-        model = LinearRegression()
-        
-    model.fit(features, label)
-    
-    # Returning linear regression R^2 and coefficients before performing diagnostics
-    r2 = model.score(features, label)
-    print()
-    print('R^2:', r2, '\n')
-    print('Coefficients')
-    print('-------------------------------------')
-    print('Intercept:', model.intercept_)
-    
-    for feature in range(len(model.coef_)):
-        print('{0}: {1}'.format(feature_names[feature], model.coef_[feature]))
-
-    print('\nPerforming linear regression assumption testing')
-    
-    # Creating predictions and calculating residuals for assumption tests
-    predictions = model.predict(features)
-    df_results = pd.DataFrame({'Actual': label, 'Predicted': predictions})
-    df_results['Residuals'] = abs(df_results['Actual']) - abs(df_results['Predicted'])
-
-    
-    def linear_assumption():
-        """
-        Linearity: Assumes there is a linear relationship between the predictors and
-                   the response variable. If not, either a polynomial term or another
-                   algorithm should be used.
-        """
-        print('\n=======================================================================================')
-        print('Assumption 1: Linear Relationship between the Target and the Features')
-        
-        print('Checking with a scatter plot of actual vs. predicted. Predictions should follow the diagonal line.')
-        
-        # Plotting the actual vs predicted values
-        sns.lmplot(x='Actual', y='Predicted', data=df_results, fit_reg=False, height=7)
-        
-        # Plotting the diagonal line
-        line_coords = np.linspace(df_results.min().min(), df_results.max().max(),100)
-        plt.plot(line_coords, line_coords,  # X and y points
-                 color='darkorange', linestyle='--')
-        plt.title('Actual vs. Predicted')
-        plt.show()
-        print('If non-linearity is apparent, consider adding a polynomial term')
-        
-
-
-        
-    def normal_errors_assumption(p_value_thresh=0.05):
-        """
-        Normality: Assumes that the error terms are normally distributed. If they are not,
-        nonlinear transformations of variables may solve this.
-               
-        This assumption being violated primarily causes issues with the confidence intervals
-        """
-        from statsmodels.stats.diagnostic import normal_ad
-        print('\n=======================================================================================')
-        print('Assumption 2: The error terms are normally distributed')
-        print()
-    
-        print('Using the Anderson-Darling test for normal distribution')
-
-        # Performing the test on the residuals
-        p_value = normal_ad(df_results['Residuals'])[1]
-        print('p-value from the test - below 0.05 generally means non-normal:', p_value)
-    
-        # Reporting the normality of the residuals
-        if p_value < p_value_thresh:
-            print('Residuals are not normally distributed')
-        else:
-            print('Residuals are normally distributed')
-    
-        # Plotting the residuals distribution
-        plt.subplots(figsize=(12, 6))
-        plt.title('Distribution of Residuals')
-        sns.distplot(df_results['Residuals'])
-        plt.show()
-    
-        print()
-        if p_value > p_value_thresh:
-            print('Assumption satisfied')
-        else:
-            print('Assumption not satisfied')
-            print()
-            print('Confidence intervals will likely be affected')
-            print('Try performing nonlinear transformations on variables')
-        
-        
-    def multicollinearity_assumption():
-        """
-        Multicollinearity: Assumes that predictors are not correlated with each other. If there is
-                           correlation among the predictors, then either remove prepdictors with high
-                           Variance Inflation Factor (VIF) values or perform dimensionality reduction
-                           
-                           This assumption being violated causes issues with interpretability of the 
-                           coefficients and the standard errors of the coefficients.
-        """
-        from statsmodels.stats.outliers_influence import variance_inflation_factor
-        print('\n=======================================================================================')
-        print('Assumption 3: Little to no multicollinearity among predictors')
-        
-        # Plotting the heatmap
-        plt.figure(figsize = (10,8))
-        sns.heatmap(pd.DataFrame(features, columns=feature_names).corr(), annot=True)
-        plt.title('Correlation of Variables')
-        plt.show()
-        
-        print('Variance Inflation Factors (VIF)')
-        print('> 10: An indication that multicollinearity may be present')
-        print('> 100: Certain multicollinearity among the variables')
-        print('-------------------------------------')
-       
-        # Gathering the VIF for each variable
-        VIF = [variance_inflation_factor(features, i) for i in range(features.shape[1])]
-        for idx, vif in enumerate(VIF):
-            print('{0}: {1}'.format(feature_names[idx], vif))
-        
-        # Gathering and printing total cases of possible or definite multicollinearity
-        possible_multicollinearity = sum([1 for vif in VIF if vif > 10])
-        definite_multicollinearity = sum([1 for vif in VIF if vif > 100])
-        print()
-        print('{0} cases of possible multicollinearity'.format(possible_multicollinearity))
-        print('{0} cases of definite multicollinearity'.format(definite_multicollinearity))
-        print()
-
-        if definite_multicollinearity == 0:
-            if possible_multicollinearity == 0:
-                print('Assumption satisfied')
-            else:
-                print('Assumption possibly satisfied')
-                print()
-                print('Coefficient interpretability may be problematic')
-                print('Consider removing variables with a high Variance Inflation Factor (VIF)')
-        else:
-            print('Assumption not satisfied')
-            print()
-            print('Coefficient interpretability will be problematic')
-            print('Consider removing variables with a high Variance Inflation Factor (VIF)')
-        
-        
-    def autocorrelation_assumption():
-        """
-        Autocorrelation: Assumes that there is no autocorrelation in the residuals. If there is
-                         autocorrelation, then there is a pattern that is not explained due to
-                         the current value being dependent on the previous value.
-                         This may be resolved by adding a lag variable of either the dependent
-                         variable or some of the predictors.
-        """
-        from statsmodels.stats.stattools import durbin_watson
-        print('\n=======================================================================================')
-        print('Assumption 4: No Autocorrelation')
-        print('\nPerforming Durbin-Watson Test')
-        print('Values of 1.5 < d < 2.5 generally show that there is no autocorrelation in the data')
-        print('0 to 2< is positive autocorrelation')
-        print('>2 to 4 is negative autocorrelation')
-        print('-------------------------------------')
-        durbinWatson = durbin_watson(df_results['Residuals'])
-        print('Durbin-Watson:', durbinWatson)
-        if durbinWatson < 1.5:
-            print('Signs of positive autocorrelation', '\n')
-            print('Assumption not satisfied', '\n')
-            print('Consider adding lag variables')
-        elif durbinWatson > 2.5:
-            print('Signs of negative autocorrelation', '\n')
-            print('Assumption not satisfied', '\n')
-            print('Consider adding lag variables')
-        else:
-            print('Little to no autocorrelation', '\n')
-            print('Assumption satisfied')
-
-            
-    def homoscedasticity_assumption():
-        """
-        Homoscedasticity: Assumes that the errors exhibit constant variance
-        """
-        print('\n=======================================================================================')
-        print('Assumption 5: Homoscedasticity of Error Terms')
-        print('Residuals should have relative constant variance')
-        
-        # Plotting the residuals
-        plt.subplots(figsize=(12, 6))
-        ax = plt.subplot(111)  # To remove spines
-        plt.scatter(x=df_results.index, y=df_results.Residuals, alpha=0.5)
-        plt.plot(np.repeat(0, df_results.index.max()), color='darkorange', linestyle='--')
-        ax.spines['right'].set_visible(False)  # Removing the right spine
-        ax.spines['top'].set_visible(False)  # Removing the top spine
-        plt.title('Residuals')
-        plt.show() 
-        print('If heteroscedasticity is apparent, confidence intervals and predictions will be affected')
-    linear_assumption()
-    normal_errors_assumption()
-    multicollinearity_assumption()
-    autocorrelation_assumption()
-    homoscedasticity_assumption()
-
-
 
 #%%
 def plot_with_same_sampling(df,namevars,path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
@@ -1579,28 +1556,28 @@ def energies_diff(energies,energy_errors):
         en_diff=en_diff-energies[i]
         en_err=en_err+energy_errors[i]
     return en_diff,en_err
-#%%
-    
-#"""short pipeline"""
-json_file_to_df(read_json_names(pathEventLog),pathEventLog)
-json_file_to_df(read_json_names(pathCycleLog),pathCycleLog)
-json_file_to_df(read_json_names(path2),path2)
-
-
-#%%
-powers=[Power,Power_1,Power_2,Power_3,Power_4,Power_5,Power_6,Power_7,Power_8,Power_9,Power_10]
-energy=[]
-error=[]
-date=[]
-mean_powers=[]
-power=pd.DataFrame()
-for p in powers:
-    power=pd.concat([power,p])
-power=power.reset_index(drop=True)
-
-
-if not('Time number' in power.columns):
-    power=add_time_as_number2(power)
+##%%
+#    
+##"""short pipeline"""
+#json_file_to_df(read_json_names(pathEventLog),pathEventLog)
+#json_file_to_df(read_json_names(pathCycleLog),pathCycleLog)
+#json_file_to_df(read_json_names(path2),path2)
+#
+#
+##%%
+#powers=[Power,Power_1,Power_2,Power_3,Power_4,Power_5,Power_6,Power_7,Power_8,Power_9,Power_10]
+#energy=[]
+#error=[]
+#date=[]
+#mean_powers=[]
+#power=pd.DataFrame()
+#for p in powers:
+#    power=pd.concat([power,p])
+#power=power.reset_index(drop=True)
+#
+#
+#if not('Time number' in power.columns):
+#    power=add_time_as_number2(power)
 #%%
 #j=70
 #for i in range(j,len(CycleLog)):
