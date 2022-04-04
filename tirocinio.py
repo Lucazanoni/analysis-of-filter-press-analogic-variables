@@ -874,7 +874,7 @@ def all_final_residual_humidity(phase2,phase3,path1, cycle_name=False,errorbar=F
 
 #%%
                 
-"""density should be mean cause the too big fluctuation of the read values"""
+#density should be mean cause the too big fluctuation of the read values"""
 def residual_humidity_of_changing_slope(filenames2,filenames3,path,mean_density=True,solid_density=2.65746,liquid_density=1.):
     """
     This function calculate the residual humidity, i.e. the residual mass of water in the cake, in the point of the curve
@@ -945,6 +945,24 @@ def residual_humidity_of_changing_slope(filenames2,filenames3,path,mean_density=
 def residual_humidity_error(slurry_density,delta_slurry,volume,delta_volume,solid_density=2.65746,
                             delta_solid=.9,liquid_density=1.,filter_volume=10.8768):
     
+    """
+    This funtion calculate the uncertainty assiociated with the residual humidity, i.e. the residual mass of water in the cake.
+    In this case the values of density of water and filtered volume of water are taken without uncertainty.
+    
+    Parameters:
+        slurry_density: double, density of the slurry
+        delta_slurry: double, the uncertainty associated with the slurry density
+        volume: double, the pumped volume of slurry
+        delta_volume: double, the uncertainty associated with the pumped volume of slurry
+        solid_density: double, the density of the solid component of the slurry. Default: 2.65746
+        delta_solid: double, the uncertainty associated with the solid component of the slurry. Default: .9
+        liquid_density: double, the density of the liquid component of the slurry (typically water). Default: 1.
+        filter_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
+    
+    Returns:
+        double, the uncertainty associated to the residual humidity
+    """
+    
     
     #rh=residual_humidity
     sl_d=slurry_density
@@ -969,6 +987,19 @@ def residual_humidity_error(slurry_density,delta_slurry,volume,delta_volume,soli
     return err
 
 def volume_error(flow,time,percentual_flow_error=0.005):
+    """
+    This function calculate the uncertainty associated to the volume calculated as integral of the flow in time.
+    In this function the time is taken without uncertainty, because the strumental error on flow is much bigger than the one on time.
+    
+    Parameters:
+        flow: array of double containing the instant flows
+        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        percentual_flow_error: the percentual uncertainty associated to the measures of flow. Default: 0.005 (0.5%)
+    
+    Returns:
+        double, the uncertainty associated to the pumped volume 
+        
+    """
     err=percentual_flow_error*flow
     tot_err=0
     
@@ -980,141 +1011,141 @@ def volume_error(flow,time,percentual_flow_error=0.005):
 
 
 #%%
-"""this function plot the time volume over volume, but showing which point corrispond to the first point that reach a trget humidity"""
-
-def plot_slopes_of_taget_humidity(filenames2,filenames3,path,target_humidity):
-
-    for i in range(len(filenames2)):
-        df2,df_p2=df_from_phase_bson(filenames2[i],path)
-        df3,df_p3=df_from_phase_bson(filenames3[i],path)
-        flow=np.zeros(len(df2)+len(df3))
-        time=np.zeros(len(df2)+len(df3))        
-        date=list(add_time_as_timeseries(df2)['timeserie'])
-        date.extend(add_time_as_timeseries(df3)['timeserie'])
-        flow[:len(df2)]=np.array(df2[analogflow])
-        flow[len(df2):]=np.array(df3[analogflow])
-        t0=time_to_num(date[0])
-        j=0
-        for t in date:
-            time[j]=time_to_num(t)-t0
-            j=j+1
-        limit=max(np.array(df3[analogpressure]))-1   #limit after that i consider constant the pressure
-        idx = next(x for x, val in enumerate(df3[analogpressure]) if val > limit)
-        idx=idx+len(df2)
-        #slopes=slopes_time_volume_over_volume(flow[idx:],time[idx:])
-        volume=volume_from_flow(flow[idx:],time[idx:])
-        t1=time[idx:]-time[idx]
-        t_V=np.array(t1[1:])/np.array(volume[1:])
-        density=np.zeros(len(df2)+len(df3))
-        density[:len(df2)]=np.array(df2[analogdensity])
-        density[len(df2):]=np.array(df3[analogdensity])
-        density=np.mean(density)
-        residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
-        j= np.where(residual_humidity<target_humidity)[0]
-        if len(j)==0:
-                  print("target humidity  is not reached in ",filenames2[i][:-24])
-                  continue
-        else:                  
-            j=j[0]
-        j=j-idx
-        plt.figure()
-        plt.scatter(volume[1:],t_V,color='c',marker='.')
-        plt.scatter(volume[j],t_V[j-1],color='red')
-        plt.xlabel('volume  [m^3]')
-        plt.ylabel('time/volume [s m^-3]')
-        plt.title('time/volume over volume in the constant pressure region')
-
-        #plt.savefig('D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/t_V of target humidity/fig_'+str(i)+'.png')
-
+#"""this function plot the time volume over volume, but showing which point corrispond to the first point that reach a trget humidity"""
+#
+#def plot_slopes_of_taget_humidity(filenames2,filenames3,path,target_humidity):
+#
+#    for i in range(len(filenames2)):
+#        df2,df_p2=df_from_phase_bson(filenames2[i],path)
+#        df3,df_p3=df_from_phase_bson(filenames3[i],path)
+#        flow=np.zeros(len(df2)+len(df3))
+#        time=np.zeros(len(df2)+len(df3))        
+#        date=list(add_time_as_timeseries(df2)['timeserie'])
+#        date.extend(add_time_as_timeseries(df3)['timeserie'])
+#        flow[:len(df2)]=np.array(df2[analogflow])
+#        flow[len(df2):]=np.array(df3[analogflow])
+#        t0=time_to_num(date[0])
+#        j=0
+#        for t in date:
+#            time[j]=time_to_num(t)-t0
+#            j=j+1
+#        limit=max(np.array(df3[analogpressure]))-1   #limit after that i consider constant the pressure
+#        idx = next(x for x, val in enumerate(df3[analogpressure]) if val > limit)
+#        idx=idx+len(df2)
+#        #slopes=slopes_time_volume_over_volume(flow[idx:],time[idx:])
+#        volume=volume_from_flow(flow[idx:],time[idx:])
+#        t1=time[idx:]-time[idx]
+#        t_V=np.array(t1[1:])/np.array(volume[1:])
+#        density=np.zeros(len(df2)+len(df3))
+#        density[:len(df2)]=np.array(df2[analogdensity])
+#        density[len(df2):]=np.array(df3[analogdensity])
+#        density=np.mean(density)
+#        residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
+#        j= np.where(residual_humidity<target_humidity)[0]
+#        if len(j)==0:
+#                  print("target humidity  is not reached in ",filenames2[i][:-24])
+#                  continue
+#        else:                  
+#            j=j[0]
+#        j=j-idx
+#        plt.figure()
+#        plt.scatter(volume[1:],t_V,color='c',marker='.')
+#        plt.scatter(volume[j],t_V[j-1],color='red')
+#        plt.xlabel('volume  [m^3]')
+#        plt.ylabel('time/volume [s m^-3]')
+#        plt.title('time/volume over volume in the constant pressure region')
+#
+#        #plt.savefig('D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/risultati/t_V over V/t_V of target humidity/fig_'+str(i)+'.png')
+#
 
 #%%
-"""take all the slopes of the target humidity and    plot in  histogram"""     
-def plot_slope_histogram_of_target_humidity(filenames2,filenames3,path,target_humidity,n_points_mean_gradient=10): 
-    slope=[]
-    for i in range(len(filenames2)):
-        df2,df_p2=df_from_phase_bson(filenames2[i],path)
-        df3,df_p3=df_from_phase_bson(filenames3[i],path)
-        flow=np.zeros(len(df2)+len(df3))
-        time=np.zeros(len(df2)+len(df3))        
-        date=list(add_time_as_timeseries(df2)['timeserie'])
-        date.extend(add_time_as_timeseries(df3)['timeserie'])
-        flow[:len(df2)]=np.array(df2[analogflow])
-        flow[len(df2):]=np.array(df3[analogflow])
-        t0=time_to_num(date[0])
-        j=0
-        for t in date:
-            time[j]=time_to_num(t)-t0
-            j=j+1
-        limit=max(np.array(df3[analogpressure]))-1   #limit after that i consider constant the pressure
-        idx = next(x for x, val in enumerate(df3[analogpressure]) if val > limit)
-        idx=idx+len(df2)
-        #slopes=slopes_time_volume_over_volume(flow[idx:],time[idx:])
-        volume=volume_from_flow(flow[idx:],time[idx:])
-        t1=time[idx:]-time[idx]
-        t_V=np.array(t1[1:])/np.array(volume[1:])
-        density=np.zeros(len(df2)+len(df3))
-        density[:len(df2)]=np.array(df2[analogdensity])
-        density[len(df2):]=np.array(df3[analogdensity])
-        density=np.mean(density)
-        residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
-        j= np.where(residual_humidity<target_humidity)[0]
-        if len(j)==0:
-                  print("target humidity  is not reached in ",filenames2[i][:-24])
-                  continue
-        else:                  
-            j=j[0]
-        j=j-idx
-        slopes=np.gradient(t_V,volume[1:])
-        if n_points_mean_gradient==0 or n_points_mean_gradient==1:
-            slope.append(slopes[j])
-        else:
-            n_points_mean_gradient=int(n_points_mean_gradient/2)
-            mean_slope=np.mean(slopes[j-n_points_mean_gradient:j+n_points_mean_gradient])
-            slope.append( mean_slope)
-    plt.hist(slope)
-    plt.xlabel('Slope')
-    plt.title('Slope of t-V over V curve with target humidity of '+str(target_humidity))
-    return slope
+#"""take all the slopes of the target humidity and    plot in  histogram"""     
+#def plot_slope_histogram_of_target_humidity(filenames2,filenames3,path,target_humidity,n_points_mean_gradient=10): 
+#    slope=[]
+#    for i in range(len(filenames2)):
+#        df2,df_p2=df_from_phase_bson(filenames2[i],path)
+#        df3,df_p3=df_from_phase_bson(filenames3[i],path)
+#        flow=np.zeros(len(df2)+len(df3))
+#        time=np.zeros(len(df2)+len(df3))        
+#        date=list(add_time_as_timeseries(df2)['timeserie'])
+#        date.extend(add_time_as_timeseries(df3)['timeserie'])
+#        flow[:len(df2)]=np.array(df2[analogflow])
+#        flow[len(df2):]=np.array(df3[analogflow])
+#        t0=time_to_num(date[0])
+#        j=0
+#        for t in date:
+#            time[j]=time_to_num(t)-t0
+#            j=j+1
+#        limit=max(np.array(df3[analogpressure]))-1   #limit after that i consider constant the pressure
+#        idx = next(x for x, val in enumerate(df3[analogpressure]) if val > limit)
+#        idx=idx+len(df2)
+#        #slopes=slopes_time_volume_over_volume(flow[idx:],time[idx:])
+#        volume=volume_from_flow(flow[idx:],time[idx:])
+#        t1=time[idx:]-time[idx]
+#        t_V=np.array(t1[1:])/np.array(volume[1:])
+#        density=np.zeros(len(df2)+len(df3))
+#        density[:len(df2)]=np.array(df2[analogdensity])
+#        density[len(df2):]=np.array(df3[analogdensity])
+#        density=np.mean(density)
+#        residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
+#        j= np.where(residual_humidity<target_humidity)[0]
+#        if len(j)==0:
+#                  print("target humidity  is not reached in ",filenames2[i][:-24])
+#                  continue
+#        else:                  
+#            j=j[0]
+#        j=j-idx
+#        slopes=np.gradient(t_V,volume[1:])
+#        if n_points_mean_gradient==0 or n_points_mean_gradient==1:
+#            slope.append(slopes[j])
+#        else:
+#            n_points_mean_gradient=int(n_points_mean_gradient/2)
+#            mean_slope=np.mean(slopes[j-n_points_mean_gradient:j+n_points_mean_gradient])
+#            slope.append( mean_slope)
+#    plt.hist(slope)
+#    plt.xlabel('Slope')
+#    plt.title('Slope of t-V over V curve with target humidity of '+str(target_humidity))
+#    return slope
 #%%
-def slope_ratio_of_target_humidity(df2,df3,target_humidity,starting_points=200,n_points_mean_gradient=0):
-    flow=np.zeros(len(df2)+len(df3))
-    time=np.zeros(len(df2)+len(df3))        
-    date=list(add_time_as_timeseries(df2)['timeserie'])
-    date.extend(add_time_as_timeseries(df3)['timeserie'])
-    flow[:len(df2)]=np.array(df2[analogflow])
-    flow[len(df2):]=np.array(df3[analogflow])
-    t0=time_to_num(date[0])
-    j=0
-    for t in date:
-        time[j]=time_to_num(t)-t0
-        j=j+1
-    limit=max(np.array(df3[analogpressure]))-1
-    idx = next(x for x, val in enumerate(df3[analogpressure]) if val > limit)
-    idx=idx+len(df2)
-    volume=volume_from_flow(flow[idx:],time[idx:])
-    t1=time[idx:]-time[idx]
-    t_V=np.array(t1[1:])/np.array(volume[1:])
-    slopes=np.gradient(t_V,volume[1:])
-    starting_slope=sp.stats.linregress(volume[:starting_points],t_V[:starting_points])[0]
-    density=np.zeros(len(df2)+len(df3))
-    density[:len(df2)]=np.array(df2[analogdensity])
-    density[len(df2):]=np.array(df3[analogdensity])
-    density=np.mean(density)
-    residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
-    j= np.where(residual_humidity<target_humidity)[0]
-    if len(j)==0:
-              #print("target humidity  is not reached in ",phase2[i][:-24])
-              return 0
-    else:                  
-        j=j[0]
-    j=j-idx
-    if n_points_mean_gradient==0 or n_points_mean_gradient==1:
-        return slopes[j]/starting_slope
-    else:
-        n_points_mean_gradient=int(n_points_mean_gradient/2)
-        mean_slope=np.mean(slopes[j-n_points_mean_gradient:j+n_points_mean_gradient])
-        return mean_slope/starting_slope
-#short test pipeline 
+#def slope_ratio_of_target_humidity(df2,df3,target_humidity,starting_points=200,n_points_mean_gradient=0):
+#    flow=np.zeros(len(df2)+len(df3))
+#    time=np.zeros(len(df2)+len(df3))        
+#    date=list(add_time_as_timeseries(df2)['timeserie'])
+#    date.extend(add_time_as_timeseries(df3)['timeserie'])
+#    flow[:len(df2)]=np.array(df2[analogflow])
+#    flow[len(df2):]=np.array(df3[analogflow])
+#    t0=time_to_num(date[0])
+#    j=0
+#    for t in date:
+#        time[j]=time_to_num(t)-t0
+#        j=j+1
+#    limit=max(np.array(df3[analogpressure]))-1
+#    idx = next(x for x, val in enumerate(df3[analogpressure]) if val > limit)
+#    idx=idx+len(df2)
+#    volume=volume_from_flow(flow[idx:],time[idx:])
+#    t1=time[idx:]-time[idx]
+#    t_V=np.array(t1[1:])/np.array(volume[1:])
+#    slopes=np.gradient(t_V,volume[1:])
+#    starting_slope=sp.stats.linregress(volume[:starting_points],t_V[:starting_points])[0]
+#    density=np.zeros(len(df2)+len(df3))
+#    density[:len(df2)]=np.array(df2[analogdensity])
+#    density[len(df2):]=np.array(df3[analogdensity])
+#    density=np.mean(density)
+#    residual_humidity=residual_humidity_over_time(flow,time,density,figure=False)
+#    j= np.where(residual_humidity<target_humidity)[0]
+#    if len(j)==0:
+#              #print("target humidity  is not reached in ",phase2[i][:-24])
+#              return 0
+#    else:                  
+#        j=j[0]
+#    j=j-idx
+#    if n_points_mean_gradient==0 or n_points_mean_gradient==1:
+#        return slopes[j]/starting_slope
+#    else:
+#        n_points_mean_gradient=int(n_points_mean_gradient/2)
+#        mean_slope=np.mean(slopes[j-n_points_mean_gradient:j+n_points_mean_gradient])
+#        return mean_slope/starting_slope
+##short test pipeline 
 
 
 
@@ -1122,27 +1153,27 @@ def slope_ratio_of_target_humidity(df2,df3,target_humidity,starting_points=200,n
 
 
 #%%
-def density_over_time(files2,files3,path,figure=False):
-    densities=[]
-    times=[]
-    for i in range(len(files3)):
-        df2,df_p2=df_from_phase_bson(files2[i],path)
-        df3,df_p3=df_from_phase_bson(files3[i],path)
-        d=np.zeros(len(df2)+len(df3))
-        t=np.zeros(len(df2)+len(df3))
-        d[:len(df2)]=np.array(df2[analogdensity])
-        d[len(df2):]=np.array(df3[analogdensity])
-        t[:len(df2)]=add_time_as_number(df2,'timestamp')['Time number']
-        t[len(df2):]=add_time_as_number(df3,'timestamp')['Time number']+t[len(df2)-1]
-        densities.append(d)
-        times.append(t)
-        if figure:
-            plt.figure()
-            plt.scatter(t,d)
-            plt.ylim([0,max(d)+0.02])
-    return densities,times
-
-"""END RESIDUAL HUMIDITY ANALYSIS"""
+#def density_over_time(files2,files3,path,figure=False):
+#    densities=[]
+#    times=[]
+#    for i in range(len(files3)):
+#        df2,df_p2=df_from_phase_bson(files2[i],path)
+#        df3,df_p3=df_from_phase_bson(files3[i],path)
+#        d=np.zeros(len(df2)+len(df3))
+#        t=np.zeros(len(df2)+len(df3))
+#        d[:len(df2)]=np.array(df2[analogdensity])
+#        d[len(df2):]=np.array(df3[analogdensity])
+#        t[:len(df2)]=add_time_as_number(df2,'timestamp')['Time number']
+#        t[len(df2):]=add_time_as_number(df3,'timestamp')['Time number']+t[len(df2)-1]
+#        densities.append(d)
+#        times.append(t)
+#        if figure:
+#            plt.figure()
+#            plt.scatter(t,d)
+#            plt.ylim([0,max(d)+0.02])
+#    return densities,times
+#
+#"""END RESIDUAL HUMIDITY ANALYSIS"""
 
 
 
@@ -1274,7 +1305,15 @@ def density_over_time(files2,files3,path,figure=False):
 #calc volume as itegral of flow
 
 def volume_from_flow(flows,times):
-    """flow must be an array"""
+    """
+    This function calculate the pumped volume as integral of the flow in the time.
+    
+    Parameters:
+        flows:array of double containing the instant flows, as m^3/h
+        times:array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+    Return:
+        list of double, the volumes calculated as integral of flow in time. The first value is 0 
+    """
     volume=[]
     volume.append(0)
     for i in range(0,len(flows)-1):
@@ -1282,281 +1321,281 @@ def volume_from_flow(flows,times):
     return volume
 
 #%%
-    """voglio selezionare una zona di punti, idealmente quelli di un ciclo, che sanno sopra un certo valore eludendo le fluttuazioni"""
-def selecting_cycle(arr, limit, n_point_under,n_point_over):
-    #arr=array of values
-    #limit=lower limit in which points are not good
-    #n_point_under=number of point under which no start cycle index is taken
-    #n_point_over=number of point under which no end cycle index is taken
-    #return=starting and ending cycle indices 
-        if(n_point_under<1):
-            raise TypeError("n_point_under should be at least 1")
-        if(n_point_over<1):
-            raise TypeError("n_point_over should be at least 1")
-        if(n_point_under>len(arr)):
-            raise TypeError("n_point_under could not be more than the length of arr")
-        if(n_point_over>len(arr)):
-            raise TypeError("n_point_over could not be more than the length of arr")
-        if len(arr)<1:
-            raise TypeError("arr is empty")
-        indices=[]
-        index_start=0
-        index_end=0
-        
-
-        k=False #k is a variable of status
-        count1=0 #count1 count the numbers over limit
-        count2=0 #count1 count the numbers under limit
-        for i in range(0,len(arr)):
-            if arr[i]>limit:
-
-                count1=count1+1
-                count2=0
-            else:
-
-                count1=0
-                count2=count2+1
-            if (count1==n_point_under  and not(k)):
-                index_start=i-n_point_under+1
-                k=True
-            if (count2==n_point_over and k):
-                index_end=i-n_point_over
-                indices.append([index_start,index_end])
-                index_start=0
-                index_end=0
-                k=False
-        return indices
-
-"""con  n_point_under=3, e  n_point_over=5 funziona abbastanza bene"""
-
-#%%
-
-def plot_2_var_interpoled(var1,var2,time1,time2):
-    var2_interp=np.interp(time1,time2,var2)
-    plt.figure()
-    plt.scatter(time1,var2_interp,marker='.')
-    plt.scatter(time2,var2,marker='o',alpha=0.2)
-    plt.figure()
-    plt.scatter(var2_interp,var1)
-
-#%%
-"""scattr plot of all division of the df"""
-def scatter_plot_cycles(df,indices,y_var,x_var='Time number'):
-    for index in indices:
-        plt.figure()
-        plt.scatter(df[x_var][index[0]:index[1]],df[y_var][index[0]:index[1]],marker='.')
-        
-        
-#%%
-"""analisi densità-volume"""
-"""density,time and flow should be array"""
-def density_volume(density,flows,time1,time2):
-    index_flow=selecting_cycle(flows,1.,3,5) #divide the points of flow in cycles in which flow is not null avoiding fluctuations
-    density_interp=np.interp(time1,time2,density) #linear interpolation of density (less sample) with the time of flow (more sample)
-    """time1 is the time whit higher number of point, time 2 less point"""
-    volumes=[]
-    densities=[]
-    for index in index_flow:
-        volume=volume_from_flow(flows[index[0]:index[1]],time1[index[0]:index[1]]) #calulate volumes as integral of flow in time
-        volumes.append(volume)
-        densities.append(density_interp[index[0]:index[1]])
-        plt.figure()
-        plt.scatter(volume,density_interp[index[0]:index[1]] , marker='.')
-#        plt.figure()
-#        plt.scatter(time1[index[0]:index[1]],volume, marker='.')
-    return(densities, volumes)
-#%%
-def integrals_of_cycles(arr,time,cycle_index):
-    total_integral=np.zeros(len(cycle_index))
-    time_integral=np.zeros(len(arr))
-    j=0
-    for index in cycle_index:
-        total_integral[j]=np.trapz(arr[index[0]:index[1]],x=time[index[0]:index[1]])
-        j=j+1
-        for i in range(index[0],index[1]):
-            if i==0:
-                time_integral[i]=0    
-            time_integral[i]=time_integral[i-1]+np.trapz([arr[i-1],arr[i]],x=[time[i-1],time[i]])
-    return total_integral,time_integral
-
-#%%
-"""divide in cycle using total feeding time=analog 21"""
+##voglio selezionare una zona di punti, idealmente quelli di un ciclo, che sanno sopra un certo valore eludendo le fluttuazioni"""
+#def selecting_cycle(arr, limit, n_point_under,n_point_over):
+#    #arr=array of values
+#    #limit=lower limit in which points are not good
+#    #n_point_under=number of point under which no start cycle index is taken
+#    #n_point_over=number of point under which no end cycle index is taken
+#    #return=starting and ending cycle indices 
+#        if(n_point_under<1):
+#            raise TypeError("n_point_under should be at least 1")
+#        if(n_point_over<1):
+#            raise TypeError("n_point_over should be at least 1")
+#        if(n_point_under>len(arr)):
+#            raise TypeError("n_point_under could not be more than the length of arr")
+#        if(n_point_over>len(arr)):
+#            raise TypeError("n_point_over could not be more than the length of arr")
+#        if len(arr)<1:
+#            raise TypeError("arr is empty")
+#        indices=[]
+#        index_start=0
+#        index_end=0
+#        
 #
-def select_cycle2_time(df,var,timename='Time number'):
-    j=0 
-    #j= variabile di ciclo: 0= ciclo spento, 1=ciclo acceso
-    start_i=[]
-    end_i=[]
-    times_start=[]
-    times_end=[]
-    for i in range(0,len(df[var])):
-        if (df[var][i]!=0 and not(np.isnan(df[var][i])) and j==0):
-            start_i.append(i)
-            j=1
-        if ((df[var][i]==0 or np.isnan(df[var][i])) and j==1):
-            end_i.append(i)
-            j=0
-    for i in range (0,len(end_i)):
-        times_start.append(df[timename][start_i[i]])
-        times_end.append(df[timename][end_i[i]])
-    return (times_start,times_end)
-
-
-
-def select_cycles_indices_by_time(df, times_start,times_end, timename='Time number'):
-    indices=[]
-    for i in range(0,len(times_start)):
-        df1=df.loc[df[timename]<=times_end[i]]
-        df1=df1.loc[df1[timename]>=times_start[i]]
-        indices.append([df1.index[0]+1,df1.index[len(df1)-1]+1])
-    return indices
-
-#%%
-
-def final_feeding_delivery_on_pressure(df,indices,limit_pressure):
-    feed_var='analogFast1'
-    pressure_var='analogFast3'
-    for i in range(0,indices[1]-indices[0]):
-        j=indices[1]-i
-        if df[pressure_var][j]>limit_pressure:
-            return df[feed_var][j-5]
-
-
-#%%
-def plot_with_same_sampling(df,namevars,path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
-    for name in namevars:
-        for name2 in namevars:
-            if name!=name2:
-                plt.figure()
-                plt.scatter(df[name],df[name2],marker='.')
-                plt.xlabel(name)
-                plt.ylabel(name2)
-                plt.title(name+'-'+name2)
-                plt.savefig(path+"/"+name+"-"+name2)
-                plt.close()
-                
-                
-def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
-                                     path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
-    time1=df1['Time number']
-    time2=df2['Time number']
-    for name1 in var1:
-        for name2 in var2:
-            var2_interp=np.interp(time1,time2,var2)
-            fig, axs = plt.subplots(2)
-            axs[0]=plt.scatter(time1,var2_interp,marker='.')
-            axs[0]=plt.scatter(time2,var2,marker='o',alpha=0.2)
-            axs[1]=plt.scatter(var2_interp,var1)
-
-
-                
-#%%
-            
-"""ENERGIES AND POWERS"""
-
-def power_diff(power_df):
-    return power_df['load1']-power_df['load2']-power_df['load3']-power_df['load4']-power_df['load5']-power_df['load6']-power_df['load7']-power_df['load8']
-
-def power_error_diff(percentual_err,power_df):
-    err=np.zeros(len(power_df))
-    for i in range(1,9):
-        err=err+np.array(power_df['load'+str(i)])*percentual_err
-    return err
-        
-    
-    
-    
-def power_errors(percentual_error,df):
-    return np.array(df)*percentual_error
-
-
-
-def energy_from_power(powers,times):
-    energy=np.zeros(len(powers))
- 
-    for i in range(1,len(powers)):
-        energy[i]=energy[i-1]+(powers[i]+powers[i-1])*((times[i]-times[i-1])/3600)*0.5
-    return energy
-
-def final_energy_error(power_error,times):
-    total_error=0
-    for i in range(len(power_error)-1):
-        total_error=total_error+(power_error[i]+power_error[i+1])*((times[i+1]-times[i])/3600)*0.5
-    return total_error
-
-
-"""this function allow to select in a dataframe with dates, the data between 2 specific dates"""
-"""it returns the section of dataFrame between the two dates""" 
-def df_select_from_time(df,start_date,end_date,time_column_name='_time'):
-    return df[(df[time_column_name]>start_date) & (df[time_column_name]<end_date)]
-    
-def energy_pie_chart(powerdf,timename='Time number',pathsave=path3, savefigure=False,name='piechart'):
-    energies=[]
-    if not(timename in powerdf.columns):
-        powerdf=add_time_as_number2(powerdf)
-    labels=['hydraulic unit', 'washing pump','compressor', 'filter feeding pump',' plates moving', 'recirculation pump'  ]
-    colors=['blue','orange','green','red','cyan','pink']
-    explode=(0.4,0.4,0.4,0,0.4,0.4)
-    for i in range(2,8):
-        load='load'+str(i)
-        energies.append(energy_from_power(np.array(powerdf[load]),np.array(powerdf['Time number']))[-1])
-
-    tot_en=sum(np.array(energies))
-    if tot_en<1:
-        nenergies=np.array(energies)*1000
-        tot_en=tot_en*1000
-        plt.figure()
-        patches=plt.pie(nenergies,explode=explode,autopct='%1.1f%%', shadow=False,colors=colors, startangle=170)
-        plt.legend(patches[0], labels, loc="lower right")
-        
-        plt.title('total energy = '+str(int(tot_en))+' [Wh]')
-        plt.tight_layout()
-    else:    
-        plt.figure()
-        patches=plt.pie(energies,explode=explode,autopct='%1.1f%%', shadow=False,colors=colors, startangle=170)
-        plt.legend(patches[0], labels, loc="lower right")
-        
-        plt.title('total energy = '+str(int(tot_en))+' [kWh]')
-        plt.tight_layout()
-    #plt.axis('equal')
-    if savefigure:
-        plt.savefig(pathsave+'/'+name+'.png')
-        plt.close()
-    return energies
-
-
-def total_time(start_date,end_date):
-    return time_to_num(end_date)-time_to_num(start_date)
-
-"""this function will furnish all the energies of each motor for each cycle"""
-"""it requires the power dataFrame and the dates of starting and ending cycles"""
-"""it will funish also the error"""
-def all_energies_for_cycles(power_df,starting_dates,ending_dates):
-    energies=[]
-    error=[]
-    if not('Time number' in power.columns):
-        power_df=add_time_as_number2(power_df)
-    for i in range(len(starting_dates)):
-        df=df_select_from_time(power_df,starting_dates[i],ending_dates[i])
-        all_energies=[]
-        all_errors=[]
-        for j in range(1,8):
-            load='load'+str(j)
-            all_energies.append(energy_from_power(np.array(df[load]),np.array(df['Time number']))[-1])
-            all_errors.append(final_energy_error(power_errors(0.01,df[load]),np.array(df['Time number'])))
-        energies.append(all_energies)
-        error.append(all_errors)
-
-    return energies,error
-
-def energies_diff(energies,energy_errors):
-    en_diff=energies[0]
-    en_err=energy_errors[0]
-    for i in range(1,len(energies)):
-        en_diff=en_diff-energies[i]
-        en_err=en_err+energy_errors[i]
-    return en_diff,en_err
+#        k=False #k is a variable of status
+#        count1=0 #count1 count the numbers over limit
+#        count2=0 #count1 count the numbers under limit
+#        for i in range(0,len(arr)):
+#            if arr[i]>limit:
+#
+#                count1=count1+1
+#                count2=0
+#            else:
+#
+#                count1=0
+#                count2=count2+1
+#            if (count1==n_point_under  and not(k)):
+#                index_start=i-n_point_under+1
+#                k=True
+#            if (count2==n_point_over and k):
+#                index_end=i-n_point_over
+#                indices.append([index_start,index_end])
+#                index_start=0
+#                index_end=0
+#                k=False
+#        return indices
+#
+#"""con  n_point_under=3, e  n_point_over=5 funziona abbastanza bene"""
+#
 ##%%
+#
+#def plot_2_var_interpoled(var1,var2,time1,time2):
+#    var2_interp=np.interp(time1,time2,var2)
+#    plt.figure()
+#    plt.scatter(time1,var2_interp,marker='.')
+#    plt.scatter(time2,var2,marker='o',alpha=0.2)
+#    plt.figure()
+#    plt.scatter(var2_interp,var1)
+#
+##%%
+#"""scattr plot of all division of the df"""
+#def scatter_plot_cycles(df,indices,y_var,x_var='Time number'):
+#    for index in indices:
+#        plt.figure()
+#        plt.scatter(df[x_var][index[0]:index[1]],df[y_var][index[0]:index[1]],marker='.')
+#        
+#        
+##%%
+#"""analisi densità-volume"""
+#"""density,time and flow should be array"""
+#def density_volume(density,flows,time1,time2):
+#    index_flow=selecting_cycle(flows,1.,3,5) #divide the points of flow in cycles in which flow is not null avoiding fluctuations
+#    density_interp=np.interp(time1,time2,density) #linear interpolation of density (less sample) with the time of flow (more sample)
+#    """time1 is the time whit higher number of point, time 2 less point"""
+#    volumes=[]
+#    densities=[]
+#    for index in index_flow:
+#        volume=volume_from_flow(flows[index[0]:index[1]],time1[index[0]:index[1]]) #calulate volumes as integral of flow in time
+#        volumes.append(volume)
+#        densities.append(density_interp[index[0]:index[1]])
+#        plt.figure()
+#        plt.scatter(volume,density_interp[index[0]:index[1]] , marker='.')
+##        plt.figure()
+##        plt.scatter(time1[index[0]:index[1]],volume, marker='.')
+#    return(densities, volumes)
+##%%
+#def integrals_of_cycles(arr,time,cycle_index):
+#    total_integral=np.zeros(len(cycle_index))
+#    time_integral=np.zeros(len(arr))
+#    j=0
+#    for index in cycle_index:
+#        total_integral[j]=np.trapz(arr[index[0]:index[1]],x=time[index[0]:index[1]])
+#        j=j+1
+#        for i in range(index[0],index[1]):
+#            if i==0:
+#                time_integral[i]=0    
+#            time_integral[i]=time_integral[i-1]+np.trapz([arr[i-1],arr[i]],x=[time[i-1],time[i]])
+#    return total_integral,time_integral
+#
+##%%
+#"""divide in cycle using total feeding time=analog 21"""
+##
+#def select_cycle2_time(df,var,timename='Time number'):
+#    j=0 
+#    #j= variabile di ciclo: 0= ciclo spento, 1=ciclo acceso
+#    start_i=[]
+#    end_i=[]
+#    times_start=[]
+#    times_end=[]
+#    for i in range(0,len(df[var])):
+#        if (df[var][i]!=0 and not(np.isnan(df[var][i])) and j==0):
+#            start_i.append(i)
+#            j=1
+#        if ((df[var][i]==0 or np.isnan(df[var][i])) and j==1):
+#            end_i.append(i)
+#            j=0
+#    for i in range (0,len(end_i)):
+#        times_start.append(df[timename][start_i[i]])
+#        times_end.append(df[timename][end_i[i]])
+#    return (times_start,times_end)
+#
+#
+#
+#def select_cycles_indices_by_time(df, times_start,times_end, timename='Time number'):
+#    indices=[]
+#    for i in range(0,len(times_start)):
+#        df1=df.loc[df[timename]<=times_end[i]]
+#        df1=df1.loc[df1[timename]>=times_start[i]]
+#        indices.append([df1.index[0]+1,df1.index[len(df1)-1]+1])
+#    return indices
+#
+##%%
+#
+#def final_feeding_delivery_on_pressure(df,indices,limit_pressure):
+#    feed_var='analogFast1'
+#    pressure_var='analogFast3'
+#    for i in range(0,indices[1]-indices[0]):
+#        j=indices[1]-i
+#        if df[pressure_var][j]>limit_pressure:
+#            return df[feed_var][j-5]
+#
+#
+##%%
+#def plot_with_same_sampling(df,namevars,path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
+#    for name in namevars:
+#        for name2 in namevars:
+#            if name!=name2:
+#                plt.figure()
+#                plt.scatter(df[name],df[name2],marker='.')
+#                plt.xlabel(name)
+#                plt.ylabel(name2)
+#                plt.title(name+'-'+name2)
+#                plt.savefig(path+"/"+name+"-"+name2)
+#                plt.close()
+#                
+#                
+#def plot_with_different_sampling(df1,df2,var1,var2,timename='Time number',
+#                                     path="D:/lucaz/OneDrive/Desktop/tirocinio/lavoro/immagini generate"):
+#    time1=df1['Time number']
+#    time2=df2['Time number']
+#    for name1 in var1:
+#        for name2 in var2:
+#            var2_interp=np.interp(time1,time2,var2)
+#            fig, axs = plt.subplots(2)
+#            axs[0]=plt.scatter(time1,var2_interp,marker='.')
+#            axs[0]=plt.scatter(time2,var2,marker='o',alpha=0.2)
+#            axs[1]=plt.scatter(var2_interp,var1)
+#
+#
+#                
+##%%
+#            
+#"""ENERGIES AND POWERS"""
+#
+#def power_diff(power_df):
+#    return power_df['load1']-power_df['load2']-power_df['load3']-power_df['load4']-power_df['load5']-power_df['load6']-power_df['load7']-power_df['load8']
+#
+#def power_error_diff(percentual_err,power_df):
+#    err=np.zeros(len(power_df))
+#    for i in range(1,9):
+#        err=err+np.array(power_df['load'+str(i)])*percentual_err
+#    return err
+#        
+#    
+#    
+#    
+#def power_errors(percentual_error,df):
+#    return np.array(df)*percentual_error
+#
+#
+#
+#def energy_from_power(powers,times):
+#    energy=np.zeros(len(powers))
+# 
+#    for i in range(1,len(powers)):
+#        energy[i]=energy[i-1]+(powers[i]+powers[i-1])*((times[i]-times[i-1])/3600)*0.5
+#    return energy
+#
+#def final_energy_error(power_error,times):
+#    total_error=0
+#    for i in range(len(power_error)-1):
+#        total_error=total_error+(power_error[i]+power_error[i+1])*((times[i+1]-times[i])/3600)*0.5
+#    return total_error
+#
+#
+#"""this function allow to select in a dataframe with dates, the data between 2 specific dates"""
+#"""it returns the section of dataFrame between the two dates""" 
+#def df_select_from_time(df,start_date,end_date,time_column_name='_time'):
+#    return df[(df[time_column_name]>start_date) & (df[time_column_name]<end_date)]
+#    
+#def energy_pie_chart(powerdf,timename='Time number',pathsave=path3, savefigure=False,name='piechart'):
+#    energies=[]
+#    if not(timename in powerdf.columns):
+#        powerdf=add_time_as_number2(powerdf)
+#    labels=['hydraulic unit', 'washing pump','compressor', 'filter feeding pump',' plates moving', 'recirculation pump'  ]
+#    colors=['blue','orange','green','red','cyan','pink']
+#    explode=(0.4,0.4,0.4,0,0.4,0.4)
+#    for i in range(2,8):
+#        load='load'+str(i)
+#        energies.append(energy_from_power(np.array(powerdf[load]),np.array(powerdf['Time number']))[-1])
+#
+#    tot_en=sum(np.array(energies))
+#    if tot_en<1:
+#        nenergies=np.array(energies)*1000
+#        tot_en=tot_en*1000
+#        plt.figure()
+#        patches=plt.pie(nenergies,explode=explode,autopct='%1.1f%%', shadow=False,colors=colors, startangle=170)
+#        plt.legend(patches[0], labels, loc="lower right")
+#        
+#        plt.title('total energy = '+str(int(tot_en))+' [Wh]')
+#        plt.tight_layout()
+#    else:    
+#        plt.figure()
+#        patches=plt.pie(energies,explode=explode,autopct='%1.1f%%', shadow=False,colors=colors, startangle=170)
+#        plt.legend(patches[0], labels, loc="lower right")
+#        
+#        plt.title('total energy = '+str(int(tot_en))+' [kWh]')
+#        plt.tight_layout()
+#    #plt.axis('equal')
+#    if savefigure:
+#        plt.savefig(pathsave+'/'+name+'.png')
+#        plt.close()
+#    return energies
+#
+#
+#def total_time(start_date,end_date):
+#    return time_to_num(end_date)-time_to_num(start_date)
+#
+#"""this function will furnish all the energies of each motor for each cycle"""
+#"""it requires the power dataFrame and the dates of starting and ending cycles"""
+#"""it will funish also the error"""
+#def all_energies_for_cycles(power_df,starting_dates,ending_dates):
+#    energies=[]
+#    error=[]
+#    if not('Time number' in power.columns):
+#        power_df=add_time_as_number2(power_df)
+#    for i in range(len(starting_dates)):
+#        df=df_select_from_time(power_df,starting_dates[i],ending_dates[i])
+#        all_energies=[]
+#        all_errors=[]
+#        for j in range(1,8):
+#            load='load'+str(j)
+#            all_energies.append(energy_from_power(np.array(df[load]),np.array(df['Time number']))[-1])
+#            all_errors.append(final_energy_error(power_errors(0.01,df[load]),np.array(df['Time number'])))
+#        energies.append(all_energies)
+#        error.append(all_errors)
+#
+#    return energies,error
+#
+#def energies_diff(energies,energy_errors):
+#    en_diff=energies[0]
+#    en_err=energy_errors[0]
+#    for i in range(1,len(energies)):
+#        en_diff=en_diff-energies[i]
+#        en_err=en_err+energy_errors[i]
+#    return en_diff,en_err
+###%%
 #    
 ##"""short pipeline"""
 #json_file_to_df(read_json_names(pathEventLog),pathEventLog)
