@@ -31,3 +31,7 @@ The residual humidity is the residual mass ow the liquid component (in general w
 During the phase 3 ot the process of filtration, the filter press is in a situation of approximately constant pressure. In this condition, theory said that the time of alimentation t and the volume pumped V are in a specific relation: the ratio t/V vs. V should be in a linear relation (for a detaied physical explanation press [here](https://core.ac.uk/reader/48625383) ). This is no true in the the first data analyzed, where there is a change of slope in the data analyzed, so there are some functions to analyze and plot the behaviour of this curve.
 
 ![figure_3](https://user-images.githubusercontent.com/48355728/162017792-a0e6e50b-3e6e-44b2-ba3c-13dd6f6a794f.png)
+
+## Structure of this Project
+
+In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then the 
