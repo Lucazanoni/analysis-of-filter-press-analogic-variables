@@ -46,5 +46,4 @@ functions to analyze and plot the behaviour of this curve.
 
 ## Structure of this Project
 
-In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then the functions
--
+In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe.
