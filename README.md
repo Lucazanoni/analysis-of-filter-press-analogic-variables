@@ -21,17 +21,30 @@ The data should be arranged in this way: a dataframe with any data recorded with
 ### Cycle
 A cycle is the ensemble of process that happens between the moment in which the slurry is started to pump, to the moment in with each cake is extracted from the filter press.
 ### Phase
-each cycle is divided in any phases, the phases of interest for the analogic variables are the the second (phase 2) and the third (phase 3), that are the two phases of feeding (when the slurry is pumped in the filter press)
+Each cycle is divided in any phases, the phases of interest for the analogic variables are the the second (phase 2) and the third (phase 3), that are the two phases of feeding (when the slurry is pumped in the filter press). In particular, phase 2 is the phase in which the slurry is filling the machine and phase 3 is the phase in which the slurry is pumped after the machine is full, so the pumped slurry increase the cakes and pump out the liquid component.  In Phase 3 after few seconds the pressure becomes almost constant 
+
+
+![Figure_1](https://user-images.githubusercontent.com/48355728/162576060-57c991f9-d761-4f83-85aa-c32780a16325.png)
+
+
+
+while the flow is rapidly dropping
+
+
 ## Analysis 
 The main focus of the functions of this library is the residual humidity, that is the residual mass of water in the cake, and the time/volume-volume curve.
 ### Residual Humidity
-The residual humidity is the residual mass ow the liquid component (in general water) in the cake. Each filter press, separating the iquind and solid part in a mechanical way, can't eliminate all the liquid component from the cake. The objective of each filter press is to reduce under a significant level the residual humidity
+The residual humidity is the residual mass ow the liquid component (in general water) in the cake. Each filter press, separating the liquid and solid part in a mechanical way, can't eliminate all the liquid component from the cake. The objective of each filter press is to reduce under a significant level the residual humidity
 (typically around 15-20 % of total mass of the cake) in a reasonable time. Here are provided some functions to analyzed the residual humidity of the cake 
+![Figure_4](https://user-images.githubusercontent.com/48355728/162576143-0a0576bd-e43c-4ed2-b1cc-3152643b5c91.png)
+
 ### Time/volume-volume curve
-During the phase 3 ot the process of filtration, the filter press is in a situation of approximately constant pressure. In this condition, theory said that the time of alimentation t and the volume pumped V are in a specific relation: the ratio t/V vs. V should be in a linear relation (for a detaied physical explanation press [here](https://core.ac.uk/reader/48625383) ). This is no true in the the first data analyzed, where there is a change of slope in the data analyzed, so there are some functions to analyze and plot the behaviour of this curve.
+During the phase 3 of the filtration process, the filter press is in a situation of approximately constant pressure. In this condition, theory said that the time of alimentation t and the volume pumped V are in a specific relation: the ratio t/V vs. V should be in a linear relation (for a detaied physical explanation press [here](https://core.ac.uk/reader/48625383) ). This is no true in the the first data analyzed, where there is a change of slope in the data analyzed, so there are some 
+functions to analyze and plot the behaviour of this curve.
 
 ![figure_3](https://user-images.githubusercontent.com/48355728/162017792-a0e6e50b-3e6e-44b2-ba3c-13dd6f6a794f.png)
 
 ## Structure of this Project
 
-In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then the 
+In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then the functions
+-
