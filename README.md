@@ -46,4 +46,27 @@ functions to analyze and plot the behaviour of this curve.
 
 ## Structure of this Project
 
-In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe.
+In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then there are many functions: 
+### Reading and preprocessing functions
+The function to read the files and opend it as Pandas DataFrame are
+- extract_bson_files_from_zip()
+- read_json_names()
+- json_file_to_df()
+- make_bson_list_for_phase
+- df_from_bson
+- df_from_phase_bson
+- cycle_list_file
+###
+Note that there are the possibility also to read json file, but the application that gives the data by default give them as bson.
+###
+There are also functions to preprocess the DataFrame, in particuar the time column, to a simplyfied use of the DataFrame. These are:
+- take_datetime()
+- timefromiso()
+- time_to_num()
+- add_time_as_number()
+- add_time_as_number2()
+- numbers_from_time()
+- add_time_as_timeseries()
+### Analysis of Data
+
+
