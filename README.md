@@ -82,3 +82,5 @@ These are the functions used to analyze the data:
 - residual_humidity_error
 ###
 The accurate description of all the functions is in **tirocinio.py** 
+####
+In folder **bson-file** there are the files relative to one single cycle, with the bson files relative to phase variables and the one referred to the entire cycle (the one with no "phase" in the name of the file. there are also 2 file .xlsx, that contain the descriptions of the name of the dataframe columns (see the section **Data** for more information)
