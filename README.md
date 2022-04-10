@@ -1,6 +1,6 @@
 # Analysis of analogic data in Industrial Filter Presses
 ## Objectives
-The objective of this small library is to provide some function to analyze some analogic data of a filter press provided in a specific way, described below.
+The objective of this small library is to provide some function to analyze some analogic data of a filter press provided by the application made with Mindsphere (from Siemens) and by 40 Factory, described below.
 ## Filter Press
 A filter press is a piece of equipment used in liquid/solid separation. 
 Specifically, the filter press separates the liquids and solids using pressure filtration, 
@@ -17,7 +17,7 @@ In many higher capacity filter presses, fast action automatic plate shifters are
 To watch an informative video of how a filter press works, press [here](https://www.youtube.com/watch?v=UguqOosjrTc&ab_channel=Prolific3DTech).
 
 ## Data
-The data should be arranged in this way: a dataframe with any data recorded with the time of record, saved as bson files divided by number of cycle and number of phase in the cycle for the phase variables. 
+The data provided by the application are  arranged in this way: dataframe with any data recorded with the time of record, saved as bson (binary json) files divided by number of cycle and number of phase in the cycle for the phase variables. The variables are divided in Analogic and Phase Analogic data, the firsts referred to all the the cycle, the seconds referred to single phases of the cycle (the meaning of cycle and phase are described below). In the Phase analogic data the bson file contain 2 dataframes, the first referred to the max values of all analogic measured and the second that contain the record of the variables of interest.
 ### Cycle
 A cycle is the ensemble of process that happens between the moment in which the slurry is started to pump, to the moment in with each cake is extracted from the filter press.
 ### Phase
