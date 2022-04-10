@@ -1,6 +1,6 @@
 # Analysis of analogic data in Industrial Filter Presses
 ## Objectives
-The objective of this small library is to provide some function to analyze some analogic data of a filter press provided by the application made with Mindsphere (from Siemens) and by 40 Factory, described below.
+The objective of this small library is to provide some function to analyze some analogic data of a filter press provided by an application made with Mindsphere (from Siemens) and by 40 Factory, integrated with sensor of filter press machine of Diemme Filtretion (Lugo, Italy).
 ## Filter Press
 A filter press is a piece of equipment used in liquid/solid separation. 
 Specifically, the filter press separates the liquids and solids using pressure filtration, 
@@ -49,9 +49,9 @@ functions to analyze and plot the behaviour of this curve.
 In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then there are many functions: 
 ### Reading and preprocessing functions
 The function to read the files and opend it as Pandas DataFrame are
-- extract_bson_files_from_zip()
-- read_json_names()
-- json_file_to_df()
+- extract_bson_files_from_zip
+- read_json_names
+- json_file_to_df
 - make_bson_list_for_phase
 - df_from_bson
 - df_from_phase_bson
@@ -60,13 +60,25 @@ The function to read the files and opend it as Pandas DataFrame are
 Note that there are the possibility also to read json file, but the application that gives the data by default give them as bson.
 ###
 There are also functions to preprocess the DataFrame, in particuar the time column, to a simplyfied use of the DataFrame. These are:
-- take_datetime()
-- timefromiso()
-- time_to_num()
-- add_time_as_number()
-- add_time_as_number2()
-- numbers_from_time()
-- add_time_as_timeseries()
+- take_datetime
+- timefromiso
+- time_to_num
+- add_time_as_number
+- add_time_as_number2
+- numbers_from_time
+- add_time_as_timeseries
 ### Analysis of Data
-
-
+These are the functions used to analyze the data:
+- volume_error
+- volume_from_flow
+- t_V_over_V_slopes
+- limit_pressure
+- time_volume_over_volume
+- slopes_time_volume_over_volume
+- residual_humidity_over_time
+- final_residual_humidity
+- cake_density_over_time
+- residual_humidity_of_changing_slope
+- residual_humidity_error
+###
+The accurate description of all the functions is in **tirocinio.py** 
