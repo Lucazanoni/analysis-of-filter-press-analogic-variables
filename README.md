@@ -17,11 +17,11 @@ In many higher capacity filter presses, fast action automatic plate shifters are
 To watch an informative video of how a filter press works, press [here](https://www.youtube.com/watch?v=UguqOosjrTc&ab_channel=Prolific3DTech).
 
 ## Data
-The data provided by the application are  arranged in this way: dataframe with any data recorded with the time of record, saved as bson (binary json) files divided by number of cycle and number of phase in the cycle for the phase variables. The variables are divided in Analogic and Phase Analogic data, the firsts referred to all the the cycle, the seconds referred to single phases of the cycle (the meaning of cycle and phase are described below). In the Phase analogic data the bson file contain 2 dataframes, the first referred to the max values of all analogic measured and the second that contain the record of the variables of interest. In the **bson-file** folder there are the files of one single cycle, the one without"phase" in the name is the analogic referred to the all cycle. The other files are the phase variable of the each phase of the cycle. The phase variables have all the same name (PhaseVars.phaseVariable1, PhaseVars.phaseVariable2,...) indipendently to which phase are referred). The file "phasevars.xlsx" in the same folder explain what are the phase variables in each phase. The file Analogs.xlsx describe the variables in the bson file referred to the complete cycle (the one without "phase" in the name of the file). In this second .xlsx file the cells are red if referred to data that are not measured in the cycles, and green for the ones that are used
+The data provided by the application are  arranged in this way: dataframes with data recorded with the time of record, saved as bson (binary json) files divided by number of cycle and number of phase in the cycle for the phase variables. The variables are divided in Analogic and Phase Analogic data, the firsts referred to all the the cycle, the seconds referred to single phases of the cycle (the meaning of cycle and phase are described below). In the Phase analogic data the bson file contain 2 dataframes, the first referred to the max values of all analogics measured and the second that contain the record of the variables of interest. In the **bson-file** folder there are the files of one single cycle, the one without"phase" in the name is the analogic referred to the all cycle. The other files are the phase variable of each phase of the cycle. The phase variables have all the same name (PhaseVars.phaseVariable1, PhaseVars.phaseVariable2,...) indipendently to which phase are referred). The file "phasevars.xlsx" in the same folder explain what are the phase variables in each phase. The file Analogs.xlsx describe the variables in the bson file referred to the complete cycle (the one without "phase" in the name of the file). In this second .xlsx file the cells are red if referred to data that are not measured in the cycles, and green for the ones that are used
 ### Cycle
 A cycle is the ensemble of process that happens between the moment in which the slurry is started to pump, to the moment in with each cake is extracted from the filter press.
 ### Phase
-Each cycle is divided in any phases, the phases of interest for the analogic variables are the the second (phase 2) and the third (phase 3), that are the two phases of feeding (when the slurry is pumped in the filter press). In particular, phase 2 is the phase in which the slurry is filling the machine and phase 3 is the phase in which the slurry is pumped after the machine is full, so the pumped slurry increase the cakes and pump out the liquid component.  In Phase 3 after few seconds the pressure becomes almost constant 
+Each cycle is divided in many phases, the phases of interest for the analogic variables are the the second (phase 2) and the third (phase 3), that are the two phases of feeding (when the slurry is pumped in the filter press). In particular, phase 2 is the phase in which the slurry is filling the machine and phase 3 is the phase in which the slurry is pumped after the machine is full, so the pumped slurry increase the cakes and pump out the liquid component.  In Phase 3, after few seconds, the pressure becomes almost constant 
 
 
 ![Figure_1](https://user-images.githubusercontent.com/48355728/162576060-57c991f9-d761-4f83-85aa-c32780a16325.png)
@@ -35,12 +35,11 @@ while the flow is rapidly dropping
 The main focus of the functions of this library is the residual humidity, that is the residual mass of water in the cake, and the time/volume-volume curve.
 ### Residual Humidity
 The residual humidity is the residual mass ow the liquid component (in general water) in the cake. Each filter press, separating the liquid and solid part in a mechanical way, can't eliminate all the liquid component from the cake. The objective of each filter press is to reduce under a significant level the residual humidity
-(typically around 15-20 % of total mass of the cake) in a reasonable time. Here are provided some functions to analyzed the residual humidity of the cake 
+(typically around 15-25 % of total mass of the cake) in a reasonable time. Here are provided some functions to analyzed the residual humidity of the cake 
 ![Figure_4](https://user-images.githubusercontent.com/48355728/162576143-0a0576bd-e43c-4ed2-b1cc-3152643b5c91.png)
 
 ### Time/volume-volume curve
-During the phase 3 of the filtration process, the filter press is in a situation of approximately constant pressure. In this condition, theory said that the time of alimentation t and the volume pumped V are in a specific relation: the ratio t/V vs. V should be in a linear relation (for a detaied physical explanation press [here](https://core.ac.uk/reader/48625383) ). This is no true in the the first data analyzed, where there is a change of slope in the data analyzed, so there are some 
-functions to analyze and plot the behaviour of this curve.
+During the phase 3 of the filtration process, the filter press is in a situation of approximately constant pressure. In this condition, theory said that the time of alimentation t and the volume pumped V are in a specific relation: the ratio t/V vs. V should be in a linear relation (for a detaied physical explanation press [here](https://scholar.cu.edu.eg/?q=magdi/files/chapter_8_filtration.pdf) ). This is not always true in the the data analyzed, where there is a change of slope in the data analyzed, so there are some functions to analyze and plot the behaviour of this curve.
 
 ![figure_3](https://user-images.githubusercontent.com/48355728/162017792-a0e6e50b-3e6e-44b2-ba3c-13dd6f6a794f.png)
 
@@ -48,7 +47,7 @@ functions to analyze and plot the behaviour of this curve.
 
 In the file tirocinio.py there are all the functions. First of all there is the need to call the function **change_global_names** to define the names of the analog variables in the dataframe. Then there are many functions: 
 ### Reading and preprocessing functions
-The function to read the files and opend it as Pandas DataFrame are
+The function to read the files and open them as Pandas DataFrame are
 - extract_bson_files_from_zip
 - read_json_names
 - json_file_to_df
@@ -57,7 +56,7 @@ The function to read the files and opend it as Pandas DataFrame are
 - df_from_phase_bson
 - cycle_list_file
 ###
-Note that there are the possibility also to read json file, but the application that gives the data by default give them as bson.
+Note that there are the possibility also to read json files, but the application that gives the data by default give them as bson.
 ###
 There are also functions to preprocess the DataFrame, in particuar the time column, to a simplyfied use of the DataFrame. These are:
 - take_datetime
@@ -83,4 +82,4 @@ These are the functions used to analyze the data:
 ###
 The accurate description of all the functions is in **tirocinio.py** 
 ####
-In folder **bson-file** there are the files relative to one single cycle, with the bson files relative to phase variables and the one referred to the entire cycle (the one with no "phase" in the name of the file. there are also 2 file .xlsx, that contain the descriptions of the name of the dataframe columns (see the section **Data** for more information)
+In folder **bson-file** there are the files relative to one single cycle, with the bson files relative to phase variables and the one referred to the entire cycle (the one with no "phase" in the name of the file. There are also 2 file .xlsx, that contain the descriptions of the name of the dataframe columns (see the section **Data** for more information)
