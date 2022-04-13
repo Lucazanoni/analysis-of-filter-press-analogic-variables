@@ -48,10 +48,16 @@ def change_global_names(density='Analogs.analog22',flow='Analogs.analog1',pressu
 #%%
 
 def extract_bson_files_from_zip(zip_path,destination_path):
-    """ EXTRACT ZIP FILES
+    """ 
+    EXTRACT ZIP FILES
         
-        if bson files are zipped and the contain a folder named output that contain the bson file
-        getting all filename of zipfiles in the zip_path directory""" 
+    if bson files are zipped and the contain a folder named output that contain the bson file
+    getting all filename of zipfiles in the zip_path directory
+    
+    Parameters:
+        zip_path: string of the directory where the zipped files are
+        destination_path: string of the directory where unzip the files
+    """ 
     import zipfile
     files=[]
     os.chdir(zip_path)
