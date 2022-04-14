@@ -342,7 +342,7 @@ def t_V_over_V_slopes(time,volume,starting_points=200,slope_points=20,limit=2):
         slope=sp.stats.linregress(volume[i:i+slope_points],t_v[i:i+slope_points])[0] 
         
         if slope/start_slope>limit:                                  
-            # if the slope of next points are over the double of starting slopes, i break the curve 
+            # if the slope of next points are over the float of starting slopes, i break the curve 
             #print("the changing of slope occours in position",i)
             return i
     #print("no change of slope")
@@ -411,18 +411,18 @@ def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,sl
     Parameters:
         filenames: list of names(strings) of the files corresponding to the phase of constant pressure during the pumping process 
         path: string of the directory in which the files are
-        slope_limit: double, ratio of slopes beyond which the curve is considered to be no more of the initial slope (change of slope). Default:2
+        slope_limit: float, ratio of slopes beyond which the curve is considered to be no more of the initial slope (change of slope). Default:2
         starting_points: int, points used to determine the inizial slope of the curve. Default:200
         slope_points: int, points used to determine the slope of the curve after the  'starting_points' points. Default:20
         figure: boolean, True to plot the results, False otherwise. Default: False
    
    Return:
        
-       slopes:list of double, the pendences of the curves calculated as if they are linear in all the reagion of constant pressure
-       interceps: list of double, the intercepts of the curves calculated as if they are linear in all the reagion of constant pressure
-       err: list of double, the uncertainty of the slopes  
-       r_value: list of double, the r value for each curve
-       times: list of double, the instant at which in each curve start the reagion of constant pressure
+       slopes:list of float, the pendences of the curves calculated as if they are linear in all the reagion of constant pressure
+       interceps: list of float, the intercepts of the curves calculated as if they are linear in all the reagion of constant pressure
+       err: list of float, the uncertainty of the slopes  
+       r_value: list of float, the r value for each curve
+       times: list of float, the instant at which in each curve start the reagion of constant pressure
        indices: list of int, the indices, calculated through the function 't_V_over_V_slopes', at which there is a change in the slope 
            of the curve.
        If Figure==True, a graph of time/volume-volume curve is plotted for each file 
@@ -501,11 +501,11 @@ def slopes_time_volume_over_volume(flows,times):
     It's used to find the change of slope in the curve
     
     Parameters:
-        flows: array of double containing the the measured flows
-        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        flows: array of float containing the the measured flows
+        time: array of float containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
     
     Return:
-        numpy array of double containing the gradient of the curve time/volume-volume
+        numpy array of float containing the gradient of the curve time/volume-volume
     """
     
     times=times-times[0]
@@ -525,16 +525,16 @@ def residual_humidity_over_time(flow,time,slurry_density,figure=False,liquid_den
     """
     This function calculate the residual humidity, i.e. the residual mass of water in the cake, during the formation of the cake.
     Parameter:
-        flow: array of double containing the instant flows
-        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
-        slurry_density: array of double containing the instant densities of the slurry or double containing the mean value
+        flow: array of float containing the instant flows
+        time: array of float containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        slurry_density: array of float containing the instant densities of the slurry or float containing the mean value
         figure: boolean, True for plotting the changing of residual humidity during the time, False otherwise. Default: False
         liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
         final_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
         solid_density: approximate mean density of the solid part of the slurry. Default:2.65746
         
     Return: 
-        Array of double containing the residual humidity from the time in which the slurry volume pumped is major than final_volume. the
+        Array of float containing the residual humidity from the time in which the slurry volume pumped is major than final_volume. the
         lenght of this array is variable. 
         if Figure==True, it will also plotted the array in function of time
     """
@@ -549,7 +549,7 @@ def residual_humidity_over_time(flow,time,slurry_density,figure=False,liquid_den
     index=next(x for x, val in enumerate(pumped_volume) if val > final_volume)
     if figure:
         plt.scatter(time[index+1:],liquid_concentration[index+1:],marker='.')
-    return liquid_concentration
+    return np.array(liquid_concentration)
 
 
 
@@ -558,13 +558,13 @@ def final_residual_humidity(pumped_volume,slurry_density,liquid_density=1.,final
     """
     This function calculate the residual humidity, i.e. the residual mass of water in the cake, at the end of the the process.
     Parameters:
-        pumperd_volume: double, the total volume of the slurry pumped
-        slurry_density: double containing the mean value of the density of slurry
+        pumperd_volume: float, the total volume of the slurry pumped
+        slurry_density: float containing the mean value of the density of slurry
         liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
         final_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
         solid_density: approximate mean density of the solid part of the slurry. Default:2.65746
     
-    Return: double,  the value of residual humidity at the end of the process
+    Return: float,  the value of residual humidity at the end of the process
     
     """
     
@@ -577,14 +577,14 @@ def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volu
     """
     This function calculate the density of the cake during his formation.
     Parameters:
-        slurry_density: array of double containing the instant densities of the slurry or double containing the mean value
-        flow: array of double containing the instant flows
-        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        slurry_density: array of float containing the instant densities of the slurry or float containing the mean value
+        flow: array of float containing the instant flows
+        time: array of float containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
         liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
         final_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
         solid_density: approximate mean density of the solid part of the slurry. Default:2.65746
     
-    Return: array of double containing the density of the cake during his formation, from time[1] to his final value 
+    Return: array of float containing the density of the cake during his formation, from time[1] to his final value 
     """
     solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
     pumped_volume=volume_from_flow(flow,time)
@@ -628,7 +628,7 @@ def residual_humidity_of_changing_slope(filenames2,filenames3,path,mean_density=
         liquid_density: density of water extracted. In general it's approximate to 1. Default: 1.
     
     Returns:
-        slope_changing_residual_humidity: array of double containing the residual humidity of each cycle in the point of changing slope
+        slope_changing_residual_humidity: list of float containing the residual humidity of each cycle in the point of changing slope
             the index of each element is the same to the one of the corrisponding cycle in filenames2 nd filenames3 
         slope_changing_control: array of integer that check for each cycle if there a point of changing slope. The element is 0 if
             there is no changing of slope in the curve, and the index of changing slope of the corrisponding cycle otherwise. 
@@ -687,17 +687,17 @@ def residual_humidity_error(slurry_density,delta_slurry,volume,delta_volume,soli
     In this case the values of density of water and filtered volume of water are taken without uncertainty.
     
     Parameters:
-        slurry_density: double, density of the slurry
-        delta_slurry: double, the uncertainty associated with the slurry density
-        volume: double, the pumped volume of slurry
-        delta_volume: double, the uncertainty associated with the pumped volume of slurry
-        solid_density: double, the density of the solid component of the slurry. Default: 2.65746
-        delta_solid: double, the uncertainty associated with the solid component of the slurry. Default: .9
-        liquid_density: double, the density of the liquid component of the slurry (typically water). Default: 1.
+        slurry_density: float, density of the slurry
+        delta_slurry: float, the uncertainty associated with the slurry density
+        volume: float, the pumped volume of slurry
+        delta_volume: float, the uncertainty associated with the pumped volume of slurry
+        solid_density: float, the density of the solid component of the slurry. Default: 2.65746
+        delta_solid: float, the uncertainty associated with the solid component of the slurry. Default: .9
+        liquid_density: float, the density of the liquid component of the slurry (typically water). Default: 1.
         filter_volume: volume of the chamber in which the slurry is pumperd. it's the volume of the cake after the filtration. Default:10.8768
     
     Returns:
-        double, the uncertainty associated to the residual humidity
+        float, the uncertainty associated to the residual humidity
     """
     
     
@@ -729,12 +729,12 @@ def volume_error(flow,time,percentual_flow_error=0.005):
     In this function the time is taken without uncertainty, because the strumental error on flow is much bigger than the one on time.
     
     Parameters:
-        flow: array of double containing the instant flows
-        time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        flow: array of float containing the instant flows
+        time: array of float containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
         percentual_flow_error: the percentual uncertainty associated to the measures of flow. Default: 0.005 (0.5%)
     
     Returns:
-        double, the uncertainty associated to the pumped volume 
+        numpy float64, the uncertainty associated to the pumped volume 
         
     """
     err=percentual_flow_error*flow
@@ -755,10 +755,10 @@ def volume_from_flow(flows,times):
     This function calculate the pumped volume as integral of the flow in the time.
     
     Parameters:
-        flows:array of double containing the instant flows, as m^3/h
-        times:array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
+        flows:array of float containing the instant flows, as m^3/h
+        times:array of float containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
     Return:
-        list of double, the volumes calculated as integral of flow in time. The first value is 0 
+        list of float, the volumes calculated as integral of flow in time. The first value is 0 
     """
     volume=[]
     volume.append(0)
