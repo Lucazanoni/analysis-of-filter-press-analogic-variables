@@ -241,30 +241,6 @@ def add_time_as_number(df,timename='_time'):
     timenumberdf=pd.DataFrame({"Time number":numbers_from_time(df,timename)})
     return(pd.concat([df,timenumberdf],axis=1))
     
-#add to df a column of time in second if time column is in datetime format
-def add_time_as_number2(df,timename='_time'):
-    """
-    Add in Pandas DataFrame with time data in timestamp formata a column with data in seconds 
-    Parameters:
-        df: Pandas dataframe
-        timename: the column name of the timestamp time data. default: '_time'
-        
-    Returns:
-        The initial dataframe with a new column in last position with time in seconds, called 'time', 
-        where the first value is the time starting point (0.0s) 
-    Raise: 
-        ValueError if the called column does not exist in dataframe
-    
-    """
-    if not(timename in df.columns):
-        raise ValueError(timename+' do not exist in the dataframe')
-    timenum=[]
-    t0=time_to_num(df[timename].iloc[0])
-    for time in df[timename]:
-        timenum.append(time_to_num(time)-t0)
-    timenumberdf=pd.DataFrame({"Time number":timenum})
-    return pd.concat([df,timenumberdf],axis=1)
-
 
 def numbers_from_time(df,timename='_time'):
     """
@@ -591,26 +567,7 @@ def cake_density_over_time(slurry_density,flow,time,liquid_density=1.,final_volu
 
     cake_density=np.array(pumped_volume)*solid_concentration*slurry_density/final_volume
     return cake_density
-#%%
-#def solid_concentrations(filenames,path,solid_density=2.65746,liquid_density=1.):
-#    solid_concentrations=[]
-#    for file in filenames:
-#        df,df_phase=df_from_phase_bson(file,path)
-#        slurry_density=np.mean(np.array(df[analogdensity]))
-#        solid_concentration=solid_density*(liquid_density-slurry_density)/(slurry_density*(liquid_density-solid_density))
-#        solid_concentrations.append(solid_concentration)
-#    return solid_concentrations
-#%%
-#
-#def all_final_humidity(filenames,path):
-#    liquid_concentrations=[]
-#    for file in filenames:
-#        df,df_phase=df_from_phase_bson(file,path)
-#        liquid_concentrations.append(final_residual_humidity(np.array(df_phase['PhaseVars.phaseVariable6'])[-1],
-#                                                                        np.mean(np.array(df_phase['PhaseVars.phaseVariable9']))))
-#    return liquid_concentrations
 
-                
 #density should be mean cause the too big fluctuation of the read values"""
 def residual_humidity_of_changing_slope(filenames2,filenames3,path,mean_density=True,solid_density=2.65746,liquid_density=1.):
     """

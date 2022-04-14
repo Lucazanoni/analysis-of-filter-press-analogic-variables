@@ -49,6 +49,14 @@ def test_add_time_as_number():
     df=(tirocinio.df_from_bson(bson,testfiledir))
     assert type(tirocinio.add_time_as_number(df,'timestamp'))==pd.DataFrame
     assert 'Time number' in tirocinio.add_time_as_number(df,'timestamp').columns
+   
+def test_read_json_names():
+    """
+    Test:
+    if function returns a list
+    """
+    assert type(tirocinio.read_json_names(testfiledir))==list
+    
     
     
 def test_time_to_num():
