@@ -63,7 +63,6 @@ There are also functions to preprocess the DataFrame, in particuar the time colu
 - timefromiso
 - time_to_num
 - add_time_as_number
-- add_time_as_number2
 - numbers_from_time
 - add_time_as_timeseries
 ### Analysis of Data
@@ -85,4 +84,4 @@ The accurate description of all the functions is in **tirocinio.py**
 In folder **bson-file** there are the files relative to one single cycle, with the bson files relative to phase variables and the one referred to the entire cycle (the one with no "phase" in the name of the file. There are also 2 file .xlsx, that contain the descriptions of the name of the dataframe columns (see the section **Data** for more information)
 
 ### Test file
-The file **test_.py** contains some test for the functions in the library. Some test functions requires files to test, for example, the bson file reading functions. These files are in the folder *test_files* 
+The file **test_.py** contains some simple tests for the functions in the library. Some test functions requires files to test, for example, the bson file reading functions. These files are in the folder *test_files* . The functions that creates global variables (*json_file_to_df*, *make_bson_list_for_phase* and *change_global_names*) are not tested, because these functions don't return nothing but only create new global variables.
