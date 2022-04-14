@@ -59,7 +59,7 @@ The function to read the files and open them as Pandas DataFrame are
 Note that there are the possibility also to read json files, but the application that gives the data by default give them as bson.
 ###
 There are also functions to preprocess the DataFrame, in particuar the time column, to a simplified use of the DataFrame. These are:
-- take_datetime
+
 - timefromiso
 - time_to_num
 - add_time_as_number
@@ -83,3 +83,6 @@ These are the functions used to analyze the data:
 The accurate description of all the functions is in **tirocinio.py** 
 ####
 In folder **bson-file** there are the files relative to one single cycle, with the bson files relative to phase variables and the one referred to the entire cycle (the one with no "phase" in the name of the file. There are also 2 file .xlsx, that contain the descriptions of the name of the dataframe columns (see the section **Data** for more information)
+
+### Test file
+The file **test_.py** contains some test for the functions in the library. Some test functions requires files to test, for example, the bson file reading functions. These files are in the folder *test_files* 
