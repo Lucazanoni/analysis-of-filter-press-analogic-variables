@@ -207,23 +207,6 @@ def cycle_list_file(n_cycle,path):
             
 #TIME IN FORM OF NUMBER FROM DATES ISO OR DATETIME FORMAT
 
-def take_datetime(df,timename='_time'):
-    """add in Pandas dataframe with time data in iso8601 formata a column with data in datastamp format 
-    PARAMETERS:
-        df: Pandas dataframe
-        timename: the column name of the iso8601 time data. default: '_time'
-        
-    Returns:
-        The initial dataframe with a new column in last position with time in datastamp format, called 'time' 
-    
-    """
-    dates=[]
-    for date in df[timename]:
-        date=dateutil.parser.isoparse(date[:-1])
-        dates.append(date)
-    date=pd.DataFrame({'time':dates})
-    return date
-
 
 def timefromiso(dataiso):
     """function to elaborate iso8601 time format, useful for other functions"""
@@ -241,7 +224,7 @@ def time_to_num(t):
     
 #add to df a column of time in second if time column is in iso format
 def add_time_as_number(df,timename='_time'):
-    """add in Pandas dataframe with time data in iso8601 formata a column with data in seconds 
+    """add in Pandas dataframe with time data in iso8601 format a column with data in seconds 
     PARAMETERS:
         df: Pandas dataframe
         timename: the column name of the iso8601 time data. default: '_time'
@@ -367,7 +350,7 @@ def t_V_over_V_slopes(time,volume,starting_points=200,slope_points=20,limit=2):
     #if there is no significative change of slope return 0
 
 #i want that the derivate of pressure is null for a while, so i check if the next n=20 points have derivate very little (<0.01)
-def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
+def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False, path='a'):
     """
     This function finds the pressure value after which the pressure can be considered almost constant, considering fluctuations, 
     after reaching the flow rate desired. It uses the derivative of the pressure and consider when it's almost  null (<0.01)
@@ -386,32 +369,37 @@ def limit_pressure(pressure,time,p_range=.5,n_limit=20,figure=False):
                  Default=20
         figure: boolean. True to plot pressure and point of starting constant pressure, False otherwise
                 Default=False
+        path: string, the directory where to save the figures. Default: 'a'. If default, it is saved in the current directory
               
-    
+    Return: 
+        integer, 0 if pressure not constant, >0 if constant, in particular return len(pressure)-n_limit-1
     """
+    if path =='a':
+        import os,inspect
+        path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     derivate=np.gradient(pressure,time)
     counter=False
     for i in range(len(pressure)-n_limit):
         if (abs(derivate[i])<0.01 and abs(max(pressure)-pressure[i])<p_range):
             counter=True
             for j in range(i,i+n_limit):
-                if abs(derivate[j])>0.01 and abs(max(pressure)-pressure[i])<p_range:
+                if (abs(derivate[j])>0.01 or abs(max(pressure)-pressure[i])>p_range):
                     counter=False
-            if counter:
-                if figure:
-                    plt.figure()
-                    plt.scatter(time,pressure,marker='.')
-                    plt.scatter(time[i],pressure[i],color='red')
-                    from datetime import datetime
-                    n= datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-                    plt.savefig(pathprova+'/'+n+'.png')
-                    plt.close()
+        if counter:
+            if figure:
+                plt.figure()
+                plt.scatter(time,pressure,marker='.')
+                plt.scatter(time[i],pressure[i],color='red')
+                from datetime import datetime
+                n= datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+                plt.savefig(path+'/'+n+'.png')
+                plt.close()
+            if len(pressure)-n_limit==i+1:
                 return i
     print("pressure not constant")
     return 0
-#%%
 
-   #da fare
+
 def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,slope_points=20,figure=False):
     """
     This function calculate the parameters and its uncertainty of the linear regression of time/volume- volume curve in the linear part (pressure constant)
@@ -430,12 +418,12 @@ def time_volume_over_volume(filenames, path,slope_limit=2,starting_points=200,sl
    
    Return:
        
-       slopes:array of double, the pendences of the curves calculated as if they are linear in all the reagion of constant pressure
-       interceps: array of double, the intercepts of the curves calculated as if they are linear in all the reagion of constant pressure
-       err: array of double, the uncertainty of the slopes  
-       r_value: array of double, the r value for each curve
-       times: array of double, the instant at which in each curve start the reagion of constant pressure
-       indices: array of int, the indices, calculated through the function 't_V_over_V_slopes', at which there is a change in the slope 
+       slopes:list of double, the pendences of the curves calculated as if they are linear in all the reagion of constant pressure
+       interceps: list of double, the intercepts of the curves calculated as if they are linear in all the reagion of constant pressure
+       err: list of double, the uncertainty of the slopes  
+       r_value: list of double, the r value for each curve
+       times: list of double, the instant at which in each curve start the reagion of constant pressure
+       indices: list of int, the indices, calculated through the function 't_V_over_V_slopes', at which there is a change in the slope 
            of the curve.
        If Figure==True, a graph of time/volume-volume curve is plotted for each file 
        
@@ -517,7 +505,7 @@ def slopes_time_volume_over_volume(flows,times):
         time: array of double containing the times (in seconds) at which each flow is measured. it must be that len(flows)==len(times)
     
     Return:
-        array of double containing the gradient of the curve time/volume-volume
+        numpy array of double containing the gradient of the curve time/volume-volume
     """
     
     times=times-times[0]
